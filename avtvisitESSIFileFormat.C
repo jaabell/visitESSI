@@ -86,10 +86,12 @@ avtvisitESSIFileFormat::avtvisitESSIFileFormat(const char *filename)
 //
 // ****************************************************************************
 
+
+//IMPLEMENT ME!
 int
 avtvisitESSIFileFormat::GetNTimesteps(void)
 {
-    return YOU_MUST_DECIDE;
+    return 0;//YOU_MUST_DECIDE;
 }
 
 
@@ -208,11 +210,11 @@ avtvisitESSIFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md, int ti
     // {
     //     char str[32];
     //     sprintf(str, "mat%d", i);
-    //     -- or -- 
+    //     -- or --
     //     strcpy(str, "Aluminum");
     //     mnames.push_back(str);
     // }
-    // 
+    //
     // Here's the call that tells the meta-data object that we have a mat:
     //
     // AddMaterialToMetaData(md, matname, mesh_for_mat, nmats, mnames);
@@ -252,10 +254,11 @@ avtvisitESSIFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md, int ti
 //
 // ****************************************************************************
 
+//IMPLEMENT ME!
 vtkDataSet *
 avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)
 {
-    YOU MUST IMPLEMENT THIS
+    return 0;//YOU MUST IMPLEMENT THIS
 }
 
 
@@ -277,10 +280,11 @@ avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)
 //
 // ****************************************************************************
 
+//IMPLEMENT ME!
 vtkDataArray *
 avtvisitESSIFileFormat::GetVar(int timestate, const char *varname)
 {
-    YOU MUST IMPLEMENT THIS
+    return 0;//YOU MUST IMPLEMENT THIS
 
     //
     // If you have a file format where variables don't apply (for example a
@@ -324,10 +328,11 @@ avtvisitESSIFileFormat::GetVar(int timestate, const char *varname)
 //
 // ****************************************************************************
 
+//IMPLEMENT ME!
 vtkDataArray *
 avtvisitESSIFileFormat::GetVectorVar(int timestate, const char *varname)
 {
-    YOU MUST IMPLEMENT THIS
+    return 0; //YOU MUST IMPLEMENT THIS
     //
     // If you have a file format where variables don't apply (for example a
     // strictly polygonal format like the STL (Stereo Lithography) format,
@@ -353,7 +358,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, const char *varname)
     //           one_entry[j] = ...
     //      for (j = ncomps ; j < ucomps ; j++)
     //           one_entry[j] = 0.;
-    //      rv->SetTuple(i, one_entry); 
+    //      rv->SetTuple(i, one_entry);
     // }
     //
     // delete [] one_entry;
