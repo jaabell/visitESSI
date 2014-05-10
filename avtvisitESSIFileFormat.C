@@ -45,9 +45,12 @@
 #include <string>
 
 #include <vtkFloatArray.h>
+#include <vtkPoints.h>
+
 #include <vtkRectilinearGrid.h>
 #include <vtkStructuredGrid.h>
 #include <vtkUnstructuredGrid.h>
+
 
 #include <avtDatabaseMetaData.h>
 
@@ -55,9 +58,23 @@
 #include <Expression.h>
 
 #include <InvalidVariableException.h>
-
+#include <InvalidDBTypeException.h>
 
 using     std::string;
+
+#include <vtkCellType.h>
+
+
+
+
+
+// My includes
+#include <hdf5.h>
+
+
+
+
+
 
 
 // ****************************************************************************
@@ -72,6 +89,8 @@ avtvisitESSIFileFormat::avtvisitESSIFileFormat(const char *filename)
     : avtMTSDFileFormat(&filename, 1)
 {
     // INITIALIZE DATA MEMBERS
+    filename_string = filename;
+    initialized = false;
 }
 
 
@@ -91,7 +110,15 @@ avtvisitESSIFileFormat::avtvisitESSIFileFormat(const char *filename)
 int
 avtvisitESSIFileFormat::GetNTimesteps(void)
 {
-    return 0;//YOU_MUST_DECIDE;
+    initialize();
+    cout << "Getting time\n\n";
+    //Get the time dimension
+    hid_t id_time = H5Dopen2(id_file, "/time", H5P_DEFAULT);
+    hid_t id_time_dataspace = H5Dget_space(id_time);
+    hsize_t id_time_nvals  = H5Sget_simple_extent_npoints(id_time_dataspace);
+
+    cout << "feioutput file contains " << id_time_nvals << " timesteps.\n\n";
+    return id_time_nvals;//YOU_MUST_DECIDE;
 }
 
 
@@ -112,6 +139,7 @@ avtvisitESSIFileFormat::GetNTimesteps(void)
 void
 avtvisitESSIFileFormat::FreeUpResources(void)
 {
+    H5close();
 }
 
 
@@ -131,75 +159,79 @@ avtvisitESSIFileFormat::FreeUpResources(void)
 void
 avtvisitESSIFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md, int timeState)
 {
+    initialize();
     //
     // CODE TO ADD A MESH
     //
-    // string meshname = ...
+    string meshname = "ESSIsim";
     //
     // AVT_RECTILINEAR_MESH, AVT_CURVILINEAR_MESH, AVT_UNSTRUCTURED_MESH,
     // AVT_POINT_MESH, AVT_SURFACE_MESH, AVT_UNKNOWN_MESH
-    // avtMeshType mt = AVT_RECTILINEAR_MESH;
-    //
-    // int nblocks = 1;  <-- this must be 1 for MTSD
+    // avtMeshType mt = AVT_UNSTRUCTURED_MESH;
+    // //
+    // int nblocks = 1;//  <-- this must be 1 for MTSD
     // int block_origin = 0;
-    // int spatial_dimension = 2;
-    // int topological_dimension = 2;
+    // int spatial_dimension = 3;
+    // int topological_dimension = 3;
     // double *extents = NULL;
-    //
-    // Here's the call that tells the meta-data object that we have a mesh:
-    //
+
+    // // Here's the call that tells the meta-data object that we have a mesh:
+    // //
     // AddMeshToMetaData(md, meshname, mt, extents, nblocks, block_origin,
     //                   spatial_dimension, topological_dimension);
     //
 
+    avtMeshMetaData *mmd = new avtMeshMetaData;
+    mmd->name = meshname.c_str();
+    mmd->spatialDimension = 3;
+    mmd->topologicalDimension = 3;
+    mmd->meshType = AVT_UNSTRUCTURED_MESH;
+    mmd->numBlocks = 1;
+
+    md->Add(mmd);
+
+
     //
     // CODE TO ADD A SCALAR VARIABLE
     //
-    // string mesh_for_this_var = meshname; // ??? -- could be multiple meshes
-    // string varname = ...
-    //
-    // AVT_NODECENT, AVT_ZONECENT, AVT_UNKNOWN_CENT
-    // avtCentering cent = AVT_NODECENT;
-    //
-    //
-    // Here's the call that tells the meta-data object that we have a var:
-    //
-    // AddScalarVarToMetaData(md, varname, mesh_for_this_var, cent);
-    //
+    string mesh_for_this_var = meshname; // ??? -- could be multiple meshes
+    string varname = "Tag";
+    avtCentering cent = AVT_NODECENT;
+
+
+    // sHere's the call that tells the meta-data object that we have a var:
+
+    AddScalarVarToMetaData(md, varname, mesh_for_this_var, cent);
+
 
     //
     // CODE TO ADD A VECTOR VARIABLE
     //
-    // string mesh_for_this_var = meshname; // ??? -- could be multiple meshes
-    // string varname = ...
-    // int vector_dim = 2;
-    //
-    // AVT_NODECENT, AVT_ZONECENT, AVT_UNKNOWN_CENT
-    // avtCentering cent = AVT_NODECENT;
+    varname = "Displacements";
+    int vector_dim = 3;
+    cent = AVT_NODECENT; // AVT_NODECENT, AVT_ZONECENT, AVT_UNKNOWN_CENT
     //
     //
-    // Here's the call that tells the meta-data object that we have a var:
+    // Here's the call that tells the meta - data object that we have a var:
     //
-    // AddVectorVarToMetaData(md, varname, mesh_for_this_var, cent,vector_dim);
+    AddVectorVarToMetaData(md, varname, mesh_for_this_var, cent, vector_dim);
     //
 
     //
     // CODE TO ADD A TENSOR VARIABLE
     //
     // string mesh_for_this_var = meshname; // ??? -- could be multiple meshes
-    // string varname = ...
-    // int tensor_dim = 9;
-    //
-    // AVT_NODECENT, AVT_ZONECENT, AVT_UNKNOWN_CENT
-    // avtCentering cent = AVT_NODECENT;
-    //
-    //
-    // Here's the call that tells the meta-data object that we have a var:
-    //
-    // AddTensorVarToMetaData(md, varname, mesh_for_this_var, cent,tensor_dim);
-    //
+    varname = "Stress";
+    int tensor_dim = 9;
+    cent = AVT_UNKNOWN_CENT;
 
-    //
+    varname = "Strain";
+    int tensor_dim = 9;
+    cent = AVT_UNKNOWN_CENT;
+    AddTensorVarToMetaData(md, varname, mesh_for_this_var, cent, tensor_dim);
+
+
+
     // CODE TO ADD A MATERIAL
     //
     // string mesh_for_mat = meshname; // ??? -- could be multiple meshes
@@ -258,8 +290,225 @@ avtvisitESSIFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md, int ti
 vtkDataSet *
 avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)
 {
-    return 0;//YOU MUST IMPLEMENT THIS
+    initialize();
+    std::cout << "Running avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)\n\n";
+
+    int nnodes = 0;
+    int ncells = 0;
+    int ndims  = 3;
+    int origin = 0;
+    herr_t status;
+
+    cout << "Reading Node Info\n\n";
+    //Read HDF5 file for info
+    hid_t id_nodes_coordinates = H5Dopen2(id_file, "/Model/Nodes/Coordinates", H5P_DEFAULT);
+    hid_t id_nodes_index_to_coordinates = H5Dopen2(id_file, "/Model/Nodes/Index_to_Coordinates", H5P_DEFAULT);
+    // hid_t id_nodes_displacements = H5Dopen2(id_file, "/Model/Nodes/Displacements", H5P_DEFAULT);
+    // hid_t id_nodes_index_to_output = H5Dopen2(id_file, "/Model/Nodes/Index_to_Nodes_Output", H5P_DEFAULT);
+    // hid_t id_nodes_ndofs = H5Dopen2(id_file, "/Model/Nodes/Number_of_DOFs", H5P_DEFAULT);
+
+    //Get the number of defined nodes
+    hid_t id_coordinates_dataspace = H5Dget_space(id_nodes_coordinates);
+    hsize_t number_of_values       = H5Sget_simple_extent_npoints(id_coordinates_dataspace);
+    nnodes                         = static_cast<int> (number_of_values) / 3;
+    const hsize_t dims[1]          = {nnodes * 3};
+    hid_t memspace                 = H5Screate_simple(1, dims, dims);
+
+    //Get number of maximum possibly defined tags :/
+    hid_t id_nodes_index_to_coordinates_dataspace = H5Dget_space(id_nodes_index_to_coordinates);
+    hsize_t nodes_number_of_tags_max = H5Sget_simple_extent_npoints(id_nodes_index_to_coordinates_dataspace);
+
+    //Get the index to coordinates
+    int index_to_coordinates[nodes_number_of_tags_max];
+    status = H5Dread(id_nodes_index_to_coordinates, H5T_NATIVE_INT, H5S_ALL   , id_nodes_index_to_coordinates_dataspace, H5P_DEFAULT,
+                     index_to_coordinates);
+
+
+    //Form an array that transforms node "tags" to connectivity indexes
+    int tags2pointnumbers[nodes_number_of_tags_max];
+    for (int i = 0; i < nodes_number_of_tags_max; i++)
+    {
+        if (index_to_coordinates[i] > 0)
+        {
+            tags2pointnumbers[i] = index_to_coordinates[i] / 3;
+        }
+        else
+        {
+            tags2pointnumbers[i] = -1;
+        }
+    }
+
+
+
+    // Write the nodes
+    // double xarray = new double[nnodes];
+    // double yarray = new double[nnodes];
+    // double zarray = new double[nnodes];
+
+
+    //
+    // Create the vtkPoints object and copy points into it.
+    //
+    vtkPoints *points = vtkPoints::New();
+    points->SetNumberOfPoints(nnodes);
+    float *pts = (float *) points->GetVoidPointer(0);
+
+    //Read values of coordinates from HDF5 directly into the VTK pts pointer
+    status = H5Dread(id_nodes_coordinates, H5T_NATIVE_FLOAT, memspace, id_coordinates_dataspace, H5P_DEFAULT,
+                     pts);
+
+
+
+    // float *xc = xarray;
+    // float *yc = yarray;
+    // float *zc = zarray;
+
+    // for (int i = 0; i < nnodes; ++i)
+    // {
+    //     *pts++ = *xc++;
+    //     *pts++ = *yc++;
+    //     *pts++ = *zc++;
+    // }
+
+    // // Delete temporary arrays.
+    // delete [] xarray;
+    // delete [] yarray;
+    // delete [] zarray;
+
+
+
+
+
+
+
+    //////////////////////////////////////////////////////////////////////////////////////////
+    //    ELEMENTS
+    //////////////////////////////////////////////////////////////////////////////////////////
+    cout << "Reading Element Info\n\n";
+
+
+    //Get the number of elements (ncells)
+    hid_t id_elements_nnodes = H5Dopen2(id_file, "/Model/Elements/Number_of_Nodes", H5P_DEFAULT);
+    hid_t id_elements_nnodes_dataspace = H5Dget_space(id_elements_nnodes);
+    hsize_t id_elements_nnodes_nvals  = H5Sget_simple_extent_npoints(id_elements_nnodes_dataspace);
+
+    int elements_nnodes[id_elements_nnodes_nvals];
+    status = H5Dread(id_elements_nnodes, H5T_NATIVE_INT, H5S_ALL   , id_elements_nnodes_dataspace, H5P_DEFAULT,
+                     elements_nnodes);
+
+    //Count number of "tags" which are > 0 (gives ncells)
+    for (int i = 0; i < id_elements_nnodes_nvals; i++)
+    {
+        if (elements_nnodes[i] > 8)
+        {
+            ncells++;
+        }
+    }
+
+
+    //Get the index to connectivity
+    hid_t id_elements_index_to_connectivity = H5Dopen2(id_file, "/Model/Elements/Index_to_Connectivity", H5P_DEFAULT);
+    hid_t id_elements_index_to_connectivity_dataspace = H5Dget_space(id_elements_index_to_connectivity);
+    hsize_t id_elements_index_to_connectivity_nvals  = H5Sget_simple_extent_npoints(id_elements_index_to_connectivity_dataspace);
+
+    int index_to_connectivity[id_elements_index_to_connectivity_nvals];
+    status = H5Dread(id_elements_index_to_connectivity, H5T_NATIVE_INT, H5S_ALL   , id_elements_index_to_connectivity_dataspace, H5P_DEFAULT,
+                     index_to_connectivity);
+
+    //Get the  connectivity
+    hid_t id_elements_connectivity = H5Dopen2(id_file, "/Model/Elements/Connectivity", H5P_DEFAULT);
+    hid_t id_elements_connectivity_dataspace = H5Dget_space(id_elements_connectivity);
+    hsize_t id_elements_connectivity_nvals  = H5Sget_simple_extent_npoints(id_elements_connectivity_dataspace);
+
+    int connectivity[id_elements_connectivity_nvals];
+    status = H5Dread(id_elements_connectivity, H5T_NATIVE_INT, H5S_ALL   , id_elements_connectivity_dataspace, H5P_DEFAULT,
+                     connectivity);
+
+
+    // Read in the connectivity array. This example assumes that
+    // the connectivity will be stored: type, indices, type,
+    // indices, ... and that there will be a type/index list
+    // pair for each cell in the mesh.
+
+
+    //
+    // Create a vtkUnstructuredGrid to contain the point cells.
+    //
+    vtkUnstructuredGrid *ugrid = vtkUnstructuredGrid::New();
+    ugrid->SetPoints(points);
+    points->Delete();
+    ugrid->Allocate(ncells);
+    vtkIdType verts[8];
+    // int *conn = connectivity;
+    int count = 0;
+    for (int i = 0; i < ncells; ++i)
+    {
+        // int fileCellType = *conn++;
+        // You file’s cellType will likely not match so you
+        // will have to translate fileCellType to a VTK
+        // cell type.
+        int cellType = 0;
+        int nverts = 0;
+
+
+        if (elements_nnodes[i] > 0)
+        {
+
+            if (elements_nnodes[i] == 8)
+            {
+                nverts = 8;
+                cellType == VTK_HEXAHEDRON;
+            }
+            else if (elements_nnodes[i] == 2)
+            {
+                nverts = 2;
+                cellType = VTK_LINE;
+            }
+            else if (elements_nnodes[i] == 4)
+            {
+                nverts = 4;
+                cellType = VTK_QUAD;
+            }
+            else if (elements_nnodes[i] == 1)
+            {
+                nverts = 1;
+                cellType = VTK_VERTEX;
+            }
+
+            // Make a list of node indices that make up the cell.
+            for (int j = 0; j < nverts; ++j)
+            {
+                int thisvertextnumber;
+                thisvertextnumber = tags2pointnumbers[connectivity[count++]];
+                if (thisvertextnumber > 0)
+                {
+                    verts[j] = thisvertextnumber;
+                }
+                else
+                {
+                    //Something went wrong
+                    // EXCEPTION0(InvalidVariableException, meshname);
+                }
+            }
+            // conn += nverts;
+            // Insert the cell into the mesh.
+            ugrid->InsertNextCell(cellType, nverts, verts);
+        }
+    }
+    // delete [] connectivity;
+    return ugrid;
+
+    /**/
+    // return 0;
 }
+
+
+
+
+
+
+
+
 
 
 // ****************************************************************************
@@ -344,24 +593,66 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, const char *varname)
     //
     // If you do have a vector variable, here is some code that may be helpful.
     //
-    // int ncomps = YYY;  // This is the rank of the vector - typically 2 or 3.
-    // int ntuples = XXX; // this is the number of entries in the variable.
-    // vtkFloatArray *rv = vtkFloatArray::New();
-    // int ucomps = (ncomps == 2 ? 3 : ncomps);
-    // rv->SetNumberOfComponents(ucomps);
-    // rv->SetNumberOfTuples(ntuples);
-    // float *one_entry = new float[ucomps];
-    // for (int i = 0 ; i < ntuples ; i++)
-    // {
-    //      int j;
-    //      for (j = 0 ; j < ncomps ; j++)
-    //           one_entry[j] = ...
-    //      for (j = ncomps ; j < ucomps ; j++)
-    //           one_entry[j] = 0.;
-    //      rv->SetTuple(i, one_entry);
-    // }
-    //
-    // delete [] one_entry;
-    // return rv;
-    //
+    int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
+    int ntuples = nnodes; // this is the number of entries in the variable.
+    vtkFloatArray *rv = vtkFloatArray::New();
+    int ucomps = (ncomps == 2 ? 3 : ncomps);
+    rv->SetNumberOfComponents(ucomps);
+    rv->SetNumberOfTuples(ntuples);
+    float *one_entry = new float[ucomps];
+    for (int i = 0 ; i < ntuples ; i++)
+    {
+        int j;
+        for (j = 0 ; j < ncomps ; j++)
+            one_entry[j] = ...
+                           for (j = ncomps ; j < ucomps ; j++)
+            {
+                one_entry[j] = 0.;
+            }
+        rv->SetTuple(i, one_entry);
+    }
+
+    delete [] one_entry;
+    return rv;
+
+}
+
+
+
+
+
+
+// Override this method in your reader
+void
+avtvisitESSIFileFormat::ActivateTimestep()
+{
+    initialize();
+}
+
+
+
+
+void avtvisitESSIFileFormat::initialize()
+{
+    if (!initialized)
+    {
+        bool okay = false;
+
+        cout << "Opening: " << filename_string << "\n\n";
+        id_file = H5Fopen( filename_string.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+        cout << "Got id  to file: " << id_file << "\n\n";
+
+        if (id_file >= 0)
+        {
+            okay = true;
+        }
+
+        if (!okay)
+        {
+            EXCEPTION1(InvalidDBTypeException,
+                       "The file could not be opened");
+        }
+
+        initialized = true;
+    }
 }

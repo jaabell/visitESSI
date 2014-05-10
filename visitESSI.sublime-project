@@ -1,8 +1,52 @@
 {
 	"folders":
 	[
-		{
+			{
+			"file_exclude_patterns":
+			[
+				"*~",
+				"*.o",
+				"*.a",
+				"*.so",
+				"*.pdf"
+			],
+			"folder_exclude_patterns":
+			[
+				"CMakeFiles"
+			],
+			"name": "Visit ESSI Plugin",
 			"path": "/home/jaabell/Repositories/visitESSI"
 		}
-	]
+	],
+	"settings":
+	{
+		"sublimeclang_options":
+		[
+			"-I/usr/include/c++/4.7/",
+			"-I/usr/include/c++/4.7/backward/",
+			"-I/usr/include/x86_64-linux-gnu/c++/4.7/",
+			"-I/usr/include/c++/",
+			"-I/usr/local/include/",
+			"-I/usr/local/",
+			"-I/usr/include/clang/3.2/include/",
+			"-I/usr/include/x86_64-linux-gnu/",
+			"-I/usr/include/",
+			"-I/usr/include/c++/4.7/**",
+			"-I/usr/include/c++/4.7/backward/**",
+			"-I/usr/include/x86_64-linux-gnu/c++/4.7/**",
+			"-I/usr/include/c++/**",
+			"-I/usr/local/include/**",
+			"-I/usr/local/**",
+			"-I/usr/include/clang/3.2/include/**",
+			"-I/usr/include/x86_64-linux-gnu/**",
+			"-I/usr/include/**",
+			"-I/usr/local/visit/2.7.2/linux-x86_64/include/",
+			"-I/usr/local/visit/2.7.2/linux-x86_64/include/**",
+			"-I/home/jaabell/Repositories/visitESSI",
+			"-I/home/jaabell/Repositories/visitESSI/**",
+			"-I${home}/Repositories/essi_dependencies/hdf5_sequential/include",
+			"ferror-limit=0",
+			"-Wall"
+		]
+	}
 }

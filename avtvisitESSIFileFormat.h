@@ -47,6 +47,7 @@
 
 #include <vector>
 
+#include <hdf5.h>
 
 // ****************************************************************************
 //  Class: avtvisitESSIFileFormat
@@ -61,40 +62,58 @@
 
 class avtvisitESSIFileFormat : public avtMTSDFileFormat
 {
-  public:
-                       avtvisitESSIFileFormat(const char *);
-    virtual           ~avtvisitESSIFileFormat() {;};
+    public:
+        avtvisitESSIFileFormat(const char *);
+        virtual           ~avtvisitESSIFileFormat()
+        {
+            ;
+        };
 
-    //
-    // This is used to return unconvention data -- ranging from material
-    // information to information about block connectivity.
-    //
-    // virtual void      *GetAuxiliaryData(const char *var, int timestep, 
-    //                                     const char *type, void *args, 
-    //                                     DestructorFunction &);
-    //
+        //
+        // This is used to return unconvention data -- ranging from material
+        // information to information about block connectivity.
+        //
+        // virtual void      *GetAuxiliaryData(const char *var, int timestep,
+        //                                     const char *type, void *args,
+        //                                     DestructorFunction &);
+        //
 
-    //
-    // If you know the times and cycle numbers, overload this function.
-    // Otherwise, VisIt will make up some reasonable ones for you.
-    //
-    // virtual void        GetCycles(std::vector<int> &);
-    // virtual void        GetTimes(std::vector<double> &);
-    //
+        //
+        // If you know the times and cycle numbers, overload this function.
+        // Otherwise, VisIt will make up some reasonable ones for you.
+        //
+        // virtual void        GetCycles(std::vector<int> &);
+        // virtual void        GetTimes(std::vector<double> &);
+        //
 
-    virtual int            GetNTimesteps(void);
+        virtual int            GetNTimesteps(void);
 
-    virtual const char    *GetType(void)   { return "visitESSI"; };
-    virtual void           FreeUpResources(void); 
+        virtual const char    *GetType(void)
+        {
+            return "visitESSI";
+        };
+        virtual void           FreeUpResources(void);
 
-    virtual vtkDataSet    *GetMesh(int, const char *);
-    virtual vtkDataArray  *GetVar(int, const char *);
-    virtual vtkDataArray  *GetVectorVar(int, const char *);
+        virtual vtkDataSet    *GetMesh(int, const char *);
+        virtual vtkDataArray  *GetVar(int, const char *);
+        virtual vtkDataArray  *GetVectorVar(int, const char *);
 
-  protected:
-    // DATA MEMBERS
+        //To provide initialization... later
+        void ActivateTimestep();
+        void initialize();
 
-    virtual void           PopulateDatabaseMetaData(avtDatabaseMetaData *, int);
+
+    protected:
+        // DATA MEMBERS
+
+        virtual void           PopulateDatabaseMetaData(avtDatabaseMetaData *, int);
+
+
+
+    private:
+        std::string filename_string;
+        bool initialized;
+        hid_t id_file;
 };
 
 
