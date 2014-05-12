@@ -90,6 +90,10 @@ avtvisitESSIFileFormat::avtvisitESSIFileFormat(const char *filename)
 {
     // INITIALIZE DATA MEMBERS
     filename_string = filename;
+    nnodes = 0;
+    ncells = 0;
+    nsteps = -1;
+
     initialized = false;
 }
 
@@ -110,15 +114,20 @@ avtvisitESSIFileFormat::avtvisitESSIFileFormat(const char *filename)
 int
 avtvisitESSIFileFormat::GetNTimesteps(void)
 {
-    initialize();
-    cout << "Getting time\n\n";
-    //Get the time dimension
-    hid_t id_time = H5Dopen2(id_file, "/time", H5P_DEFAULT);
-    hid_t id_time_dataspace = H5Dget_space(id_time);
-    hsize_t id_time_nvals  = H5Sget_simple_extent_npoints(id_time_dataspace);
+    if (nsteps < 0)
+    {
+        initialize();
+        cout << "visitESSI: Getting time\n\n";
+        //Get the time dimension
+        hid_t id_time = H5Dopen2(id_file, "/time", H5P_DEFAULT);
+        hid_t id_time_dataspace = H5Dget_space(id_time);
+        hsize_t id_time_nvals  = H5Sget_simple_extent_npoints(id_time_dataspace);
 
-    cout << "feioutput file contains " << id_time_nvals << " timesteps.\n\n";
-    return id_time_nvals;//YOU_MUST_DECIDE;
+        cout << "visitESSI: feioutput file contains " << id_time_nvals << " timesteps.\n\n";
+
+        nsteps = id_time_nvals;
+    }
+    return nsteps;//YOU_MUST_DECIDE;
 }
 
 
@@ -226,8 +235,6 @@ avtvisitESSIFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md, int ti
     cent = AVT_UNKNOWN_CENT;
 
     varname = "Strain";
-    int tensor_dim = 9;
-    cent = AVT_UNKNOWN_CENT;
     AddTensorVarToMetaData(md, varname, mesh_for_this_var, cent, tensor_dim);
 
 
@@ -291,41 +298,40 @@ vtkDataSet *
 avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)
 {
     initialize();
-    std::cout << "Running avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)\n\n";
+    std::cout << "visitESSI: Getting Mesh. \n\n";
 
-    int nnodes = 0;
-    int ncells = 0;
     int ndims  = 3;
     int origin = 0;
     herr_t status;
 
-    cout << "Reading Node Info\n\n";
-    //Read HDF5 file for info
-    hid_t id_nodes_coordinates = H5Dopen2(id_file, "/Model/Nodes/Coordinates", H5P_DEFAULT);
-    hid_t id_nodes_index_to_coordinates = H5Dopen2(id_file, "/Model/Nodes/Index_to_Coordinates", H5P_DEFAULT);
-    // hid_t id_nodes_displacements = H5Dopen2(id_file, "/Model/Nodes/Displacements", H5P_DEFAULT);
-    // hid_t id_nodes_index_to_output = H5Dopen2(id_file, "/Model/Nodes/Index_to_Nodes_Output", H5P_DEFAULT);
-    // hid_t id_nodes_ndofs = H5Dopen2(id_file, "/Model/Nodes/Number_of_DOFs", H5P_DEFAULT);
+    //////////////////////////////////////////////////////////////////////////////////////////
+    // Nodes
+    //////////////////////////////////////////////////////////////////////////////////////////
+
+
+    cout << "visitESSI: Reading Node Info\n\n";
+
 
     //Get the number of defined nodes
-    hid_t id_coordinates_dataspace = H5Dget_space(id_nodes_coordinates);
-    hsize_t number_of_values       = H5Sget_simple_extent_npoints(id_coordinates_dataspace);
-    nnodes                         = static_cast<int> (number_of_values) / 3;
-    const hsize_t dims[1]          = {nnodes * 3};
-    hid_t memspace                 = H5Screate_simple(1, dims, dims);
+    hid_t id_nodes_coordinates                    = H5Dopen2(id_file, "/Model/Nodes/Coordinates", H5P_DEFAULT);
+    hid_t id_coordinates_dataspace                = H5Dget_space(id_nodes_coordinates);
+    hsize_t id_nodes_coordinates_nvals            = H5Sget_simple_extent_npoints(id_coordinates_dataspace);
+    nnodes                                        = static_cast<int> (id_nodes_coordinates_nvals) / 3;
+
 
     //Get number of maximum possibly defined tags :/
+    hid_t id_nodes_index_to_coordinates           = H5Dopen2(id_file, "/Model/Nodes/Index_to_Coordinates", H5P_DEFAULT);
     hid_t id_nodes_index_to_coordinates_dataspace = H5Dget_space(id_nodes_index_to_coordinates);
-    hsize_t nodes_number_of_tags_max = H5Sget_simple_extent_npoints(id_nodes_index_to_coordinates_dataspace);
+    hsize_t nodes_number_of_tags_max              = H5Sget_simple_extent_npoints(id_nodes_index_to_coordinates_dataspace);
 
     //Get the index to coordinates
-    int index_to_coordinates[nodes_number_of_tags_max];
+    int *index_to_coordinates = new int[nodes_number_of_tags_max];
     status = H5Dread(id_nodes_index_to_coordinates, H5T_NATIVE_INT, H5S_ALL   , id_nodes_index_to_coordinates_dataspace, H5P_DEFAULT,
                      index_to_coordinates);
 
 
     //Form an array that transforms node "tags" to connectivity indexes
-    int tags2pointnumbers[nodes_number_of_tags_max];
+    int *tags2pointnumbers = new int[nodes_number_of_tags_max];
     for (int i = 0; i < nodes_number_of_tags_max; i++)
     {
         if (index_to_coordinates[i] > 0)
@@ -341,50 +347,35 @@ avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)
 
 
     // Write the nodes
-    // double xarray = new double[nnodes];
-    // double yarray = new double[nnodes];
-    // double zarray = new double[nnodes];
-
 
     //
     // Create the vtkPoints object and copy points into it.
     //
     vtkPoints *points = vtkPoints::New();
     points->SetNumberOfPoints(nnodes);
-    float *pts = (float *) points->GetVoidPointer(0);
+    float *pts        = (float *) points->GetVoidPointer(0);
 
     //Read values of coordinates from HDF5 directly into the VTK pts pointer
+    const hsize_t dims[1]          = {nnodes * 3};
+    hid_t memspace                 = H5Screate_simple(1, dims, dims);
     status = H5Dread(id_nodes_coordinates, H5T_NATIVE_FLOAT, memspace, id_coordinates_dataspace, H5P_DEFAULT,
                      pts);
 
+    cout << "visitESSI: Done reading nodes. Read " << nnodes << " nodes values.\n\n";
 
 
-    // float *xc = xarray;
-    // float *yc = yarray;
-    // float *zc = zarray;
-
-    // for (int i = 0; i < nnodes; ++i)
-    // {
-    //     *pts++ = *xc++;
-    //     *pts++ = *yc++;
-    //     *pts++ = *zc++;
-    // }
-
-    // // Delete temporary arrays.
-    // delete [] xarray;
-    // delete [] yarray;
-    // delete [] zarray;
-
-
-
-
-
+    //Free up memory.
+    delete [] index_to_coordinates;
+    H5Dclose(id_nodes_coordinates);
+    H5Sclose(id_coordinates_dataspace);
+    H5Dclose(id_nodes_index_to_coordinates);
+    H5Sclose(id_nodes_index_to_coordinates_dataspace);
 
 
     //////////////////////////////////////////////////////////////////////////////////////////
     //    ELEMENTS
     //////////////////////////////////////////////////////////////////////////////////////////
-    cout << "Reading Element Info\n\n";
+    cout << "visitESSI: Reading Element Info\n\n";
 
 
     //Get the number of elements (ncells)
@@ -392,7 +383,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)
     hid_t id_elements_nnodes_dataspace = H5Dget_space(id_elements_nnodes);
     hsize_t id_elements_nnodes_nvals  = H5Sget_simple_extent_npoints(id_elements_nnodes_dataspace);
 
-    int elements_nnodes[id_elements_nnodes_nvals];
+    int *elements_nnodes  = new int[id_elements_nnodes_nvals];
     status = H5Dread(id_elements_nnodes, H5T_NATIVE_INT, H5S_ALL   , id_elements_nnodes_dataspace, H5P_DEFAULT,
                      elements_nnodes);
 
@@ -404,52 +395,43 @@ avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)
             ncells++;
         }
     }
+    H5Dclose(id_elements_nnodes);
+    H5Sclose(id_elements_nnodes_dataspace);
 
 
-    //Get the index to connectivity
-    hid_t id_elements_index_to_connectivity = H5Dopen2(id_file, "/Model/Elements/Index_to_Connectivity", H5P_DEFAULT);
-    hid_t id_elements_index_to_connectivity_dataspace = H5Dget_space(id_elements_index_to_connectivity);
-    hsize_t id_elements_index_to_connectivity_nvals  = H5Sget_simple_extent_npoints(id_elements_index_to_connectivity_dataspace);
-
-    int index_to_connectivity[id_elements_index_to_connectivity_nvals];
-    status = H5Dread(id_elements_index_to_connectivity, H5T_NATIVE_INT, H5S_ALL   , id_elements_index_to_connectivity_dataspace, H5P_DEFAULT,
-                     index_to_connectivity);
 
     //Get the  connectivity
-    hid_t id_elements_connectivity = H5Dopen2(id_file, "/Model/Elements/Connectivity", H5P_DEFAULT);
+    hid_t id_elements_connectivity           = H5Dopen2(id_file, "/Model/Elements/Connectivity", H5P_DEFAULT);
     hid_t id_elements_connectivity_dataspace = H5Dget_space(id_elements_connectivity);
-    hsize_t id_elements_connectivity_nvals  = H5Sget_simple_extent_npoints(id_elements_connectivity_dataspace);
+    hsize_t id_elements_connectivity_nvals   = H5Sget_simple_extent_npoints(id_elements_connectivity_dataspace);
 
-    int connectivity[id_elements_connectivity_nvals];
+    int *connectivity  = new int[id_elements_connectivity_nvals];
     status = H5Dread(id_elements_connectivity, H5T_NATIVE_INT, H5S_ALL   , id_elements_connectivity_dataspace, H5P_DEFAULT,
                      connectivity);
+    H5Dclose(id_elements_connectivity);
+    H5Sclose(id_elements_connectivity_dataspace);
 
 
-    // Read in the connectivity array. This example assumes that
-    // the connectivity will be stored: type, indices, type,
-    // indices, ... and that there will be a type/index list
-    // pair for each cell in the mesh.
 
 
     //
     // Create a vtkUnstructuredGrid to contain the point cells.
     //
     vtkUnstructuredGrid *ugrid = vtkUnstructuredGrid::New();
-    ugrid->SetPoints(points);
-    points->Delete();
-    ugrid->Allocate(ncells);
+
+    ugrid  -> SetPoints(points);
+    points -> Delete();
+    ugrid  -> Allocate(ncells);
+
     vtkIdType verts[8];
-    // int *conn = connectivity;
+
+
+    //Loop over elements and add them
     int count = 0;
     for (int i = 0; i < ncells; ++i)
     {
-        // int fileCellType = *conn++;
-        // You file’s cellType will likely not match so you
-        // will have to translate fileCellType to a VTK
-        // cell type.
         int cellType = 0;
         int nverts = 0;
-
 
         if (elements_nnodes[i] > 0)
         {
@@ -495,7 +477,9 @@ avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)
             ugrid->InsertNextCell(cellType, nverts, verts);
         }
     }
-    // delete [] connectivity;
+    delete [] connectivity;
+    delete [] tags2pointnumbers;
+    delete [] elements_nnodes;
     return ugrid;
 
     /**/
@@ -581,7 +565,7 @@ avtvisitESSIFileFormat::GetVar(int timestate, const char *varname)
 vtkDataArray *
 avtvisitESSIFileFormat::GetVectorVar(int timestate, const char *varname)
 {
-    return 0; //YOU MUST IMPLEMENT THIS
+    // return 0; //YOU MUST IMPLEMENT THIS
     //
     // If you have a file format where variables don't apply (for example a
     // strictly polygonal format like the STL (Stereo Lithography) format,
@@ -593,28 +577,105 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, const char *varname)
     //
     // If you do have a vector variable, here is some code that may be helpful.
     //
-    int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
-    int ntuples = nnodes; // this is the number of entries in the variable.
-    vtkFloatArray *rv = vtkFloatArray::New();
-    int ucomps = (ncomps == 2 ? 3 : ncomps);
-    rv->SetNumberOfComponents(ucomps);
-    rv->SetNumberOfTuples(ntuples);
-    float *one_entry = new float[ucomps];
-    for (int i = 0 ; i < ntuples ; i++)
+    std::string name = varname;
+
+    cout << "visitESSI: Trying to get " << varname << ". \n\n";
+
+    if ( name.compare("Displacements") == 0)
     {
-        int j;
-        for (j = 0 ; j < ncomps ; j++)
-            one_entry[j] = ...
-                           for (j = ncomps ; j < ucomps ; j++)
-            {
-                one_entry[j] = 0.;
-            }
-        rv->SetTuple(i, one_entry);
+        cout << "visitESSI: Getting displacements. \n\n";
+        int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
+        int ntuples = nnodes; // this is the number of entries in the variable.
+        int ucomps = 3;
+
+
+        vtkFloatArray *rv = vtkFloatArray::New();
+        rv->SetNumberOfComponents(ucomps);
+        rv->SetNumberOfTuples(ntuples);
+
+        cout << "visitESSI: Opening HDF5 file. \n";
+        //Get the  connectivity
+        hid_t id_nodes_index_to_output = H5Dopen2(id_file, "/Model/Nodes/Index_to_Nodes_Output", H5P_DEFAULT);
+        hid_t id_nodes_index_to_output_dataspace = H5Dget_space(id_nodes_index_to_output);
+        hsize_t id_nodes_index_to_output_nvals  = H5Sget_simple_extent_npoints(id_nodes_index_to_output_dataspace);
+
+        int *index_to_output  = new int[id_nodes_index_to_output_nvals];
+
+        cout << "visitESSI: Reading displacements index. \n";
+        H5Dread(id_nodes_index_to_output, H5T_NATIVE_INT, H5S_ALL   , id_nodes_index_to_output_dataspace, H5P_DEFAULT,
+                index_to_output);
+        H5Dclose(id_nodes_index_to_output);
+        H5Sclose(id_nodes_index_to_output_dataspace);
+        cout << "            Done!                       \n";
+
+
+        cout << "visitESSI: Getting extents \n";
+        //Open up displacements for reading
+        hid_t id_nodes_displacements = H5Dopen2(id_file, "/Model/Nodes/Displacements", H5P_DEFAULT);
+        hid_t id_nodes_displacements_dataspace = H5Dget_space(id_nodes_displacements);
+        int node_displacements_ndims = H5Sget_simple_extent_ndims(id_nodes_displacements_dataspace);
+        cout << "node_displacements_ndims = " << node_displacements_ndims << endl;
+
+        hsize_t dims[node_displacements_ndims];
+        hsize_t maxdims[node_displacements_ndims];
+        H5Sget_simple_extent_dims(id_nodes_displacements_dataspace, dims, maxdims );
+
+        cout << "                          Got dims" << endl;
+
+        for (int i = 0; i < node_displacements_ndims; i++)
+        {
+            cout << "      dim[" << i << "] = " << dims[i] <<  "\n";
+        }
+
+
+        //Create description of data in memory
+        hsize_t datadims[1] = {dims[0]};
+        hid_t memspace  = H5Screate_simple(1, datadims, datadims);
+
+        cout << "visitESSI: Selecting.\n";
+
+        //Try to get all the displacements now
+        float *displacements = new float[dims[0]];
+
+        const hsize_t start[2] = {0, timestate};
+        const hsize_t stride[2] = {1, 1};
+        const hsize_t count[2] = {dims[0], 1};
+        const hsize_t block[2] = {1, 1};
+
+        H5Sselect_hyperslab( id_nodes_displacements_dataspace, H5S_SELECT_SET, start, stride, count, block );
+
+        cout << "visitESSI: Reading displacements for this step into memory. \n";
+        H5Dread(id_nodes_displacements, H5T_NATIVE_FLOAT, memspace   , id_nodes_displacements_dataspace, H5P_DEFAULT,
+                displacements);
+
+        H5Dclose(id_nodes_displacements);
+        H5Sclose(id_nodes_displacements_dataspace);
+        H5Sclose(memspace);
+
+        cout << "visitESSI: Loading displacements into VTK object. \n";
+        float *one_entry = new float[ucomps];
+        float *d = displacements;
+        for (int i = 0 ; i < ntuples ; i++)
+        {
+            one_entry[0] = *(d++);
+            one_entry[1] = *(d++);
+            one_entry[2] = *(d++);
+            rv->SetTuple(i, one_entry);
+        }
+
+        delete [] one_entry;
+        delete [] index_to_output;
+        delete [] displacements;
+
+
+
+        return rv;
     }
-
-    delete [] one_entry;
-    return rv;
-
+    else
+    {
+        cout << "visitESSI: Variable '" << name <<  "' not available. \n\n";
+    }
+    return 0;
 }
 
 
@@ -638,7 +699,7 @@ void avtvisitESSIFileFormat::initialize()
     {
         bool okay = false;
 
-        cout << "Opening: " << filename_string << "\n\n";
+        cout << "visitESSI: Opening: " << filename_string << "\n\n";
         id_file = H5Fopen( filename_string.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
         cout << "Got id  to file: " << id_file << "\n\n";
 
@@ -649,6 +710,7 @@ void avtvisitESSIFileFormat::initialize()
 
         if (!okay)
         {
+            cout << "visitESSI: Could not open file.\n\n";
             EXCEPTION1(InvalidDBTypeException,
                        "The file could not be opened");
         }

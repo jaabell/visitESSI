@@ -114,6 +114,9 @@ class avtvisitESSIFileFormat : public avtMTSDFileFormat
         std::string filename_string;
         bool initialized;
         hid_t id_file;
+        int nnodes;
+        int ncells;
+        int nsteps;
 };
 
 
