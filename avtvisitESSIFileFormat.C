@@ -302,6 +302,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)
 
     int ndims  = 3;
     int origin = 0;
+    ncells = 0;
     herr_t status;
 
     //////////////////////////////////////////////////////////////////////////////////////////
@@ -334,7 +335,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)
     int *tags2pointnumbers = new int[nodes_number_of_tags_max];
     for (int i = 0; i < nodes_number_of_tags_max; i++)
     {
-        if (index_to_coordinates[i] > 0)
+        if (index_to_coordinates[i] >= 0)
         {
             tags2pointnumbers[i] = index_to_coordinates[i] / 3;
         }
@@ -383,6 +384,8 @@ avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)
     hid_t id_elements_nnodes_dataspace = H5Dget_space(id_elements_nnodes);
     hsize_t id_elements_nnodes_nvals  = H5Sget_simple_extent_npoints(id_elements_nnodes_dataspace);
 
+
+
     int *elements_nnodes  = new int[id_elements_nnodes_nvals];
     status = H5Dread(id_elements_nnodes, H5T_NATIVE_INT, H5S_ALL   , id_elements_nnodes_dataspace, H5P_DEFAULT,
                      elements_nnodes);
@@ -390,7 +393,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)
     //Count number of "tags" which are > 0 (gives ncells)
     for (int i = 0; i < id_elements_nnodes_nvals; i++)
     {
-        if (elements_nnodes[i] > 8)
+        if (elements_nnodes[i] == 8) // For now, only show 8 node bricks
         {
             ncells++;
         }
@@ -399,6 +402,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)
     H5Sclose(id_elements_nnodes_dataspace);
 
 
+    cout << "visitESSI: Mesh has " << ncells <<  " elements. \n\n";
 
     //Get the  connectivity
     hid_t id_elements_connectivity           = H5Dopen2(id_file, "/Model/Elements/Connectivity", H5P_DEFAULT);
@@ -425,10 +429,11 @@ avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)
 
     vtkIdType verts[8];
 
-
     //Loop over elements and add them
     int count = 0;
-    for (int i = 0; i < ncells; ++i)
+    int number_of_added_elements = 0;
+    int access_order[8] = {4, 5, 6, 7, 0, 1, 2, 3};
+    for (int i = 0; i < id_elements_nnodes_nvals; ++i)
     {
         int cellType = 0;
         int nverts = 0;
@@ -436,10 +441,12 @@ avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)
         if (elements_nnodes[i] > 0)
         {
 
+            number_of_added_elements++;
             if (elements_nnodes[i] == 8)
             {
                 nverts = 8;
-                cellType == VTK_HEXAHEDRON;
+                cellType = VTK_HEXAHEDRON;
+                // cout << "                Adding hex number " << number_of_added_elements << endl;
             }
             else if (elements_nnodes[i] == 2)
             {
@@ -458,13 +465,18 @@ avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)
             }
 
             // Make a list of node indices that make up the cell.
+            // cout << "                   nodes = [ ";
             for (int j = 0; j < nverts; ++j)
             {
-                int thisvertextnumber;
-                thisvertextnumber = tags2pointnumbers[connectivity[count++]];
-                if (thisvertextnumber > 0)
+                int essi_node_number = connectivity[count + access_order[j]];
+                int visit_vertex_number;
+                visit_vertex_number = tags2pointnumbers[essi_node_number];
+                // cout << "                                          " << count << " + " <<  access_order[j] << ": " << essi_node_number
+                // << " -> " << visit_vertex_number << "\n";
+                if (visit_vertex_number >= 0)
                 {
-                    verts[j] = thisvertextnumber;
+                    verts[j] = visit_vertex_number;
+                    // cout << thisvertextnumber << " ";
                 }
                 else
                 {
@@ -472,11 +484,18 @@ avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)
                     // EXCEPTION0(InvalidVariableException, meshname);
                 }
             }
+            // cout << "]\n";
+            count += 8;
             // conn += nverts;
             // Insert the cell into the mesh.
+            // cout << "                   Inserting, cellType = " << cellType << ", nverts = " <<
+            // nverts << "\n";
             ugrid->InsertNextCell(cellType, nverts, verts);
         }
     }
+
+
+    cout << "visitESSI: Added " << number_of_added_elements << " elements of " << ncells << " total available.\n\n";
     delete [] connectivity;
     delete [] tags2pointnumbers;
     delete [] elements_nnodes;
@@ -593,7 +612,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, const char *varname)
         rv->SetNumberOfComponents(ucomps);
         rv->SetNumberOfTuples(ntuples);
 
-        cout << "visitESSI: Opening HDF5 file. \n";
+        // cout << "visitESSI: Opening HDF5 file. \n";
         //Get the  connectivity
         hid_t id_nodes_index_to_output = H5Dopen2(id_file, "/Model/Nodes/Index_to_Nodes_Output", H5P_DEFAULT);
         hid_t id_nodes_index_to_output_dataspace = H5Dget_space(id_nodes_index_to_output);
@@ -601,38 +620,38 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, const char *varname)
 
         int *index_to_output  = new int[id_nodes_index_to_output_nvals];
 
-        cout << "visitESSI: Reading displacements index. \n";
+        // cout << "visitESSI: Reading displacements index. \n";
         H5Dread(id_nodes_index_to_output, H5T_NATIVE_INT, H5S_ALL   , id_nodes_index_to_output_dataspace, H5P_DEFAULT,
                 index_to_output);
         H5Dclose(id_nodes_index_to_output);
         H5Sclose(id_nodes_index_to_output_dataspace);
-        cout << "            Done!                       \n";
+        // cout << "            Done!                       \n";
 
 
-        cout << "visitESSI: Getting extents \n";
+        // cout << "visitESSI: Getting extents \n";
         //Open up displacements for reading
         hid_t id_nodes_displacements = H5Dopen2(id_file, "/Model/Nodes/Displacements", H5P_DEFAULT);
         hid_t id_nodes_displacements_dataspace = H5Dget_space(id_nodes_displacements);
         int node_displacements_ndims = H5Sget_simple_extent_ndims(id_nodes_displacements_dataspace);
-        cout << "node_displacements_ndims = " << node_displacements_ndims << endl;
+        // cout << "node_displacements_ndims = " << node_displacements_ndims << endl;
 
         hsize_t dims[node_displacements_ndims];
         hsize_t maxdims[node_displacements_ndims];
         H5Sget_simple_extent_dims(id_nodes_displacements_dataspace, dims, maxdims );
 
-        cout << "                          Got dims" << endl;
+        // cout << "                          Got dims" << endl;
 
-        for (int i = 0; i < node_displacements_ndims; i++)
-        {
-            cout << "      dim[" << i << "] = " << dims[i] <<  "\n";
-        }
+        // for (int i = 0; i < node_displacements_ndims; i++)
+        // {
+        //     cout << "      dim[" << i << "] = " << dims[i] <<  "\n";
+        // }
 
 
         //Create description of data in memory
         hsize_t datadims[1] = {dims[0]};
         hid_t memspace  = H5Screate_simple(1, datadims, datadims);
 
-        cout << "visitESSI: Selecting.\n";
+        // cout << "visitESSI: Selecting.\n";
 
         //Try to get all the displacements now
         float *displacements = new float[dims[0]];
@@ -644,7 +663,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, const char *varname)
 
         H5Sselect_hyperslab( id_nodes_displacements_dataspace, H5S_SELECT_SET, start, stride, count, block );
 
-        cout << "visitESSI: Reading displacements for this step into memory. \n";
+        // cout << "visitESSI: Reading displacements for this step into memory. \n";
         H5Dread(id_nodes_displacements, H5T_NATIVE_FLOAT, memspace   , id_nodes_displacements_dataspace, H5P_DEFAULT,
                 displacements);
 
@@ -652,7 +671,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, const char *varname)
         H5Sclose(id_nodes_displacements_dataspace);
         H5Sclose(memspace);
 
-        cout << "visitESSI: Loading displacements into VTK object. \n";
+        // cout << "visitESSI: Loading displacements into VTK object. \n";
         float *one_entry = new float[ucomps];
         float *d = displacements;
         for (int i = 0 ; i < ntuples ; i++)

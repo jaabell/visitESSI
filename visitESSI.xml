@@ -10,7 +10,7 @@
       ${HDF5_LIB}
     </LIBS>
     <FilePatterns>
-      feioutput
+      *.h5.feioutput
     </FilePatterns>
     <Attribute name="" purpose="" persistent="true" keyframe="true" exportAPI="" exportInclude="">
     </Attribute>
