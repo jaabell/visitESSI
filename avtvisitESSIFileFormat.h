@@ -87,6 +87,7 @@ class avtvisitESSIFileFormat : public avtMTSDFileFormat
         //
 
         virtual int            GetNTimesteps(void);
+        virtual void        GetTime(std::vector<double> &times);
 
         virtual const char    *GetType(void)
         {
@@ -101,6 +102,8 @@ class avtvisitESSIFileFormat : public avtMTSDFileFormat
         //To provide initialization... later
         void ActivateTimestep();
         void initialize();
+
+        void PopulateTimeAndNSteps();
 
 
     protected:
@@ -117,6 +120,7 @@ class avtvisitESSIFileFormat : public avtMTSDFileFormat
         int nnodes;
         int ncells;
         int nsteps;
+        std::vector<double> t;
 };
 
 
