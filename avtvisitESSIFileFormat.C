@@ -393,7 +393,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)
     //Count number of "tags" which are > 0 (gives ncells)
     for (int i = 0; i < id_elements_nnodes_nvals; i++)
     {
-        if (elements_nnodes[i] == 8) // For now, only show 8 node bricks
+        if (elements_nnodes[i] >=  0) // For now, only show 8 node bricks
         {
             ncells++;
         }
@@ -427,16 +427,23 @@ avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)
     points -> Delete();
     ugrid  -> Allocate(ncells);
 
-    vtkIdType verts[8];
+    vtkIdType verts[27];
 
     //Loop over elements and add them
     int count = 0;
     int number_of_added_elements = 0;
-    int access_order[8] = {4, 5, 6, 7, 0, 1, 2, 3};
+    int essi_to_vtk_8nodebrick[8] = {4, 5, 6, 7, 0, 1, 2, 3};
+    //
+    //                                  0   1   2   3   4   5   6   7   8   9   10   11   12   13   14   15   16   17   18   19   20   21   22   23   24   25   26
+    //                                { 7,  6,  5,  8,  3,  2,  1,  4,  14, 13, 16,  15,  10,  9,   12,  11,  19,  18,  17,  20,  24,  22,  23,  25,  27,  26,  21 };
+    int essi_to_vtk_27nodebrick[27] = { 6,  5,  4,  7,  2,  1,  0,  3,  13, 12, 15,  14,   9,   8,  11,  10,  18,  17,  16,  19,  23,  21,  22,  24,  26,  25,  20 };
+    int *access_order;
+    bool found = false;
     for (int i = 0; i < id_elements_nnodes_nvals; ++i)
     {
         int cellType = 0;
         int nverts = 0;
+        found = false;
 
         if (elements_nnodes[i] > 0)
         {
@@ -446,12 +453,15 @@ avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)
             {
                 nverts = 8;
                 cellType = VTK_HEXAHEDRON;
-                // cout << "                Adding hex number " << number_of_added_elements << endl;
+                access_order = essi_to_vtk_8nodebrick;
+                found = true;
             }
-            else if (elements_nnodes[i] == 2)
+            else if (elements_nnodes[i] == 27)
             {
-                nverts = 2;
-                cellType = VTK_LINE;
+                nverts = 27;
+                cellType = VTK_TRIQUADRATIC_HEXAHEDRON;
+                access_order = essi_to_vtk_27nodebrick;
+                found = true;
             }
             else if (elements_nnodes[i] == 4)
             {
@@ -463,29 +473,35 @@ avtvisitESSIFileFormat::GetMesh(int timestate, const char *meshname)
                 nverts = 1;
                 cellType = VTK_VERTEX;
             }
-
-            // Make a list of node indices that make up the cell.
-            // cout << "                   nodes = [ ";
-            for (int j = 0; j < nverts; ++j)
+            if (found)
             {
-                int essi_node_number = connectivity[count + access_order[j]];
+                // cout << "i =  " << i <<
+                //      " cellType =  " << cellType <<
+                //      " nverts =  " << nverts <<  "  [ ";
+                // Make a list of node indices that make up the cell..
+                int essi_node_number;
                 int visit_vertex_number;
-                visit_vertex_number = tags2pointnumbers[essi_node_number];
-                // cout << "                                          " << count << " + " <<  access_order[j] << ": " << essi_node_number
-                // << " -> " << visit_vertex_number << "\n";
-                if (visit_vertex_number >= 0)
+                for (int j = 0; j < nverts; ++j)
                 {
-                    verts[j] = visit_vertex_number;
-                    // cout << thisvertextnumber << " ";
+                    essi_node_number = connectivity[count + access_order[j]];
+                    visit_vertex_number = tags2pointnumbers[essi_node_number];
+                    // cout << access_order[j] << " ";
+
+                    if (visit_vertex_number >= 0)
+                    {
+                        verts[j] = visit_vertex_number;
+
+                    }
+                    else
+                    {
+                        //Something went wrong
+                        // cerr << "!!!! visitESSI - something went wrong\n\n";
+                        // EXCEPTION0(InvalidVariableException, meshname);
+                    }
                 }
-                else
-                {
-                    //Something went wrong
-                    // EXCEPTION0(InvalidVariableException, meshname);
-                }
+                // cout << "]\n";
             }
-            // cout << "]\n";
-            count += 8;
+            count += nverts;
             // conn += nverts;
             // Insert the cell into the mesh.
             // cout << "                   Inserting, cellType = " << cellType << ", nverts = " <<
@@ -614,6 +630,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, const char *varname)
 
         // cout << "visitESSI: Opening HDF5 file. \n";
         //Get the  connectivity
+        // hid_t id_nodes_index_to_output = H5Dopen2(id_file, "/Model/Nodes/Index_to_Generalized_Coordinates", H5P_DEFAULT);
         hid_t id_nodes_index_to_output = H5Dopen2(id_file, "/Model/Nodes/Index_to_Nodes_Output", H5P_DEFAULT);
         hid_t id_nodes_index_to_output_dataspace = H5Dget_space(id_nodes_index_to_output);
         hsize_t id_nodes_index_to_output_nvals  = H5Sget_simple_extent_npoints(id_nodes_index_to_output_dataspace);
@@ -630,6 +647,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, const char *varname)
 
         // cout << "visitESSI: Getting extents \n";
         //Open up displacements for reading
+        // hid_t id_nodes_displacements = H5Dopen2(id_file, "/Model/Nodes/Generalized_Coordinates", H5P_DEFAULT);
         hid_t id_nodes_displacements = H5Dopen2(id_file, "/Model/Nodes/Displacements", H5P_DEFAULT);
         hid_t id_nodes_displacements_dataspace = H5Dget_space(id_nodes_displacements);
         int node_displacements_ndims = H5Sget_simple_extent_ndims(id_nodes_displacements_dataspace);
