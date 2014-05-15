@@ -38,7 +38,7 @@
 
 #include <visitESSIPluginInfo.h>
 #include <avtvisitESSIFileFormat.h>
-#include <avtMTSDFileFormatInterface.h>
+#include <avtMTMDFileFormatInterface.h>
 #include <avtGenericDatabase.h>
 
 // ****************************************************************************
@@ -54,7 +54,7 @@
 DatabaseType
 visitESSICommonPluginInfo::GetDatabaseType()
 {
-    return DB_TYPE_MTSD;
+    return DB_TYPE_MTMD;
 }
 
 // ****************************************************************************
@@ -78,17 +78,14 @@ avtDatabase *
 visitESSICommonPluginInfo::SetupDatabase(const char *const *list,
                                    int nList, int nBlock)
 {
+    // ignore any nBlocks past 1
     int nTimestepGroups = nList / nBlock;
-    avtMTSDFileFormat ***ffl = new avtMTSDFileFormat**[nTimestepGroups];
+    avtMTMDFileFormat **ffl = new avtMTMDFileFormat*[nTimestepGroups];
     for (int i = 0 ; i < nTimestepGroups ; i++)
     {
-        ffl[i] = new avtMTSDFileFormat*[nBlock];
-        for (int j = 0 ; j < nBlock ; j++)
-        {
-            ffl[i][j] = new avtvisitESSIFileFormat(list[i*nBlock + j]);
-        }
+        ffl[i] = new avtvisitESSIFileFormat(list[i*nBlock]);
     }
-    avtMTSDFileFormatInterface *inter 
-           = new avtMTSDFileFormatInterface(ffl, nTimestepGroups, nBlock);
+    avtMTMDFileFormatInterface *inter 
+           = new avtMTMDFileFormatInterface(ffl, nTimestepGroups);
     return new avtGenericDatabase(inter);
 }

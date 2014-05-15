@@ -95,7 +95,7 @@ visitESSIGeneralPluginInfo::GetName() const
 const char *
 visitESSIGeneralPluginInfo::GetVersion() const
 {
-    return "1.0";
+    return "1.1";
 }
 
 // ****************************************************************************
@@ -114,7 +114,7 @@ visitESSIGeneralPluginInfo::GetVersion() const
 const char *
 visitESSIGeneralPluginInfo::GetID() const
 {
-    return "visitESSI_1.0";
+    return "visitESSI_1.1";
 }
 // ****************************************************************************
 //  Method: visitESSIGeneralPluginInfo::EnabledByDefault
@@ -166,10 +166,7 @@ std::vector<std::string>
 visitESSIGeneralPluginInfo::GetDefaultFilePatterns() const
 {
     std::vector<std::string> defaultPatterns;
-    defaultPatterns.push_back("h5.feioutput");
     defaultPatterns.push_back("feioutput");
-    defaultPatterns.push_back("essioutput");
-    defaultPatterns.push_back("h5.essioutput");
 
     return defaultPatterns;
 }

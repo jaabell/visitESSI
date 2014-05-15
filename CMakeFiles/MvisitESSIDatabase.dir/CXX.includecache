@@ -510,7 +510,7 @@ avtDataSelection.h
 avtTypes.h
 -
 
-/usr/local/visit/2.7.2/linux-x86_64/include/visit/avt/Database/Formats/avtMTSDFileFormat.h
+/usr/local/visit/2.7.2/linux-x86_64/include/visit/avt/Database/Formats/avtMTMDFileFormat.h
 database_exports.h
 -
 avtFileFormat.h
@@ -1159,10 +1159,20 @@ windows.h
 -
 
 avtvisitESSIFileFormat.h
-avtMTSDFileFormat.h
+avtMTMDFileFormat.h
 -
 vector
 -
 hdf5.h
+-
+vtkFloatArray.h
+-
+vtkPoints.h
+-
+vtkRectilinearGrid.h
+-
+vtkStructuredGrid.h
+-
+vtkUnstructuredGrid.h
 -
 
