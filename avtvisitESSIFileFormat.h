@@ -121,6 +121,7 @@ class avtvisitESSIFileFormat : public avtMTMDFileFormat
         bool initialized;
         hid_t id_file;
         int nnodes;
+        int ngauss;
         int ncells;
         int nsteps;
         std::vector<double> t;

@@ -4,16 +4,20 @@
 		"selected_items":
 		[
 			[
+				"gaus",
+				"gaussmesh_data	vtkUnstructuredGrid *"
+			],
+			[
+				"mainmesh",
+				"mainmesh_data	vtkUnstructuredGrid *"
+			],
+			[
 				"main",
 				"mainmesh_pts	float *"
 			],
 			[
 				"retur",
 				"returned_mainmesh_already	bool"
-			],
-			[
-				"gaus",
-				"gaussmesh_data	int *"
 			],
 			[
 				"retr",
@@ -510,10 +514,6 @@
 			[
 				"end",
 				"endMaterialDescription()	int"
-			],
-			[
-				"temp",
-				"temp_field_units_stack	std::queue<string>"
 			]
 		]
 	},
@@ -523,7 +523,7 @@
 			"file": "avtvisitESSIFileFormat.h",
 			"settings":
 			{
-				"buffer_size": 5315,
+				"buffer_size": 5174,
 				"line_ending": "Unix"
 			}
 		},
@@ -531,7 +531,7 @@
 			"file": "avtvisitESSIFileFormat.C",
 			"settings":
 			{
-				"buffer_size": 33908,
+				"buffer_size": 34087,
 				"line_ending": "Unix"
 			}
 		},
@@ -539,7 +539,7 @@
 			"file": "/home/jaabell/Repositories/essi_verification_examples/Seismic_Wave_Propagation_Problems/1D_Wave_Pisano_soil/example_wave_1d_pisano.fei",
 			"settings":
 			{
-				"buffer_size": 7782,
+				"buffer_size": 7767,
 				"line_ending": "Unix"
 			}
 		},
@@ -1072,10 +1072,10 @@
 	},
 	"file_history":
 	[
+		"/home/jaabell/Repositories/essi_verification_examples/Seismic_Wave_Propagation_Problems/1D_Wave_Pisano_soil/example_wave_1d_pisano.fei",
 		"/home/jaabell/example3.fei",
 		"/home/jaabell/example3",
 		"/home/jaabell/useful_commands.md",
-		"/home/jaabell/Repositories/essi_verification_examples/Seismic_Wave_Propagation_Problems/1D_Wave_Pisano_soil/example_wave_1d_pisano.fei",
 		"/home/jaabell/.config/sublime-text-2/Packages/FEI Syntax-n-Snippets/fei.tmLanguage",
 		"/usr/local/visit/2.7.2/linux-x86_64/include/visit/avt/Database/Database/avtDatabase.h",
 		"/usr/local/visit/2.7.2/linux-x86_64/include/visit/avt/Database/Formats/avtMTSDFileFormat.h",
@@ -1217,6 +1217,9 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"nnodes",
+			"}\n",
+			"ugrid",
 			"];\n",
 			" / ",
 			"mainmesh_pts",
@@ -1341,10 +1344,7 @@
 			"/*",
 			"chunk",
 			"length_nodes_displacements_output",
-			"length_nodes_reaction_forcess_output",
-			"length_nodes_displacements_output",
-			"id_nodes_accelerations",
-			"id_nodes_displacements"
+			"length_nodes_reaction_forcess_output"
 		],
 		"highlight": true,
 		"in_selection": false,
@@ -1398,15 +1398,15 @@
 					"file": "avtvisitESSIFileFormat.h",
 					"settings":
 					{
-						"buffer_size": 5315,
+						"buffer_size": 5174,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								5258,
-								5258
+								5145,
+								5145
 							]
 						],
 						"settings":
@@ -1515,15 +1515,15 @@
 					"file": "avtvisitESSIFileFormat.C",
 					"settings":
 					{
-						"buffer_size": 33908,
+						"buffer_size": 34087,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								17261,
-								17261
+								3483,
+								3483
 							]
 						],
 						"settings":
@@ -1622,7 +1622,7 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 5460.0,
+						"translation.y": 1417.0,
 						"zoom_level": 1.0
 					},
 					"type": "text"
@@ -1632,15 +1632,15 @@
 					"file": "/home/jaabell/Repositories/essi_verification_examples/Seismic_Wave_Propagation_Problems/1D_Wave_Pisano_soil/example_wave_1d_pisano.fei",
 					"settings":
 					{
-						"buffer_size": 7782,
+						"buffer_size": 7767,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								3655,
-								3655
+								1934,
+								1934
 							]
 						],
 						"settings":
@@ -1738,7 +1738,7 @@
 							"translate_tabs_to_spaces": false
 						},
 						"translation.x": 0.0,
-						"translation.y": 1131.0,
+						"translation.y": 312.0,
 						"zoom_level": 1.0
 					},
 					"type": "text"

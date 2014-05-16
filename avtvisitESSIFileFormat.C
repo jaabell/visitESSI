@@ -546,15 +546,10 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
 
     else if (strcmp(meshname, gaussmesh.c_str()) == 0)
     {
-        if (returned_gaussmesh_already)
-        {
-            return gaussmesh_data;
-        }
-        else
+        if (gaussmesh_data == NULL)
         {
             int ndims  = 3;
             int origin = 0;
-            ncells = 0;
             herr_t status;
 
             //////////////////////////////////////////////////////////////////////////////////////////
@@ -569,7 +564,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             hid_t id_nodes_coordinates                    = H5Dopen2(id_file, "/Model/Elements/Gauss_Point_Coordinates", H5P_DEFAULT);
             hid_t id_coordinates_dataspace                = H5Dget_space(id_nodes_coordinates);
             hsize_t id_nodes_coordinates_nvals            = H5Sget_simple_extent_npoints(id_coordinates_dataspace);
-            nnodes                                        = static_cast<int> (id_nodes_coordinates_nvals) / 3;
+            ngauss                                        = static_cast<int> (id_nodes_coordinates_nvals) / 3;
 
 
             //Get number of maximum possibly defined tags :/
@@ -591,16 +586,16 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             // Create the vtkPoints object and copy points into it.
             //
             vtkPoints *points = vtkPoints::New();
-            points->SetNumberOfPoints(nnodes);
+            points->SetNumberOfPoints(ngauss);
             float *pts        = (float *) points->GetVoidPointer(0);
 
             //Read values of coordinates from HDF5 directly into the VTK pts pointer
-            const hsize_t dims[1]          = {nnodes * 3};
+            const hsize_t dims[1]          = {ngauss * 3};
             hid_t memspace                 = H5Screate_simple(1, dims, dims);
             status = H5Dread(id_nodes_coordinates, H5T_NATIVE_FLOAT, memspace, id_coordinates_dataspace, H5P_DEFAULT,
                              pts);
 
-            cout << "visitESSI: Done reading Gauss Points. Read " << nnodes << " GP coordinate values.\n\n";
+            cout << "visitESSI: Done reading Gauss Points. Read " << ngauss << " GP coordinate values.\n\n";
 
 
             //Free up memory.
@@ -610,7 +605,12 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             H5Dclose(id_nodes_index_to_coordinates);
             H5Sclose(id_nodes_index_to_coordinates_dataspace);
 
-
+            cout << "List of GPs \n";
+            int j = 0;
+            for (int i = 0; i < ngauss; i++)
+            {
+                cout << pts[j++] << " " << pts[j++] << " " << pts[j++] << "\n";
+            }
 
 
 
@@ -619,23 +619,19 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             //
             // Create a vtkUnstructuredGrid to contain the point cells.
             //
-            vtkUnstructuredGrid *ugrid = vtkUnstructuredGrid::New();
-            ugrid->SetPoints(points);
+            gaussmesh_data = vtkUnstructuredGrid::New();
+            gaussmesh_data->SetPoints(points);
             points->Delete();
-            ugrid->Allocate(nnodes);
+            gaussmesh_data->Allocate(ngauss);
             vtkIdType onevertex;
-            for (int i = 0; i < nnodes; ++i)
+            for (int i = 0; i < ngauss; ++i)
             {
                 onevertex = i;
-                ugrid->InsertNextCell(VTK_VERTEX, 1, &onevertex);
+                gaussmesh_data->InsertNextCell(VTK_VERTEX, 1, &onevertex);
             }
-
-            returned_gaussmesh_already = true;
-
-            gaussmesh_data = ugrid;
-
-            return ugrid;
         }
+        gaussmesh_data->Register(NULL);
+        return gaussmesh_data;
     }
 
 }
