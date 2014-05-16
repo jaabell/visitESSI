@@ -4,6 +4,26 @@
 		"selected_items":
 		[
 			[
+				"main",
+				"mainmesh_pts	float *"
+			],
+			[
+				"retur",
+				"returned_mainmesh_already	bool"
+			],
+			[
+				"gaus",
+				"gaussmesh_data	int *"
+			],
+			[
+				"retr",
+				"returned_gaussmesh_already	bool"
+			],
+			[
+				"ma",
+				"mainmesh_data	int *"
+			],
+			[
 				"vis",
 				"visitESSI"
 			],
@@ -494,26 +514,6 @@
 			[
 				"temp",
 				"temp_field_units_stack	std::queue<string>"
-			],
-			[
-				"field",
-				"field_units_stack	std::queue<string>"
-			],
-			[
-				"tem",
-				"temp_field_is_time_dependent_stack	std::queue<bool>"
-			],
-			[
-				"nextf",
-				"getNextField(std::string &field_name, bool &is_time_dependent, std::string &units)	int"
-			],
-			[
-				"id_cur",
-				"id_current_object	hid_t"
-			],
-			[
-				"begin",
-				"beginNodeDescription(int tag)	int"
 			]
 		]
 	},
@@ -523,7 +523,7 @@
 			"file": "avtvisitESSIFileFormat.h",
 			"settings":
 			{
-				"buffer_size": 4632,
+				"buffer_size": 5315,
 				"line_ending": "Unix"
 			}
 		},
@@ -531,7 +531,7 @@
 			"file": "avtvisitESSIFileFormat.C",
 			"settings":
 			{
-				"buffer_size": 24582,
+				"buffer_size": 33908,
 				"line_ending": "Unix"
 			}
 		},
@@ -539,15 +539,7 @@
 			"file": "/home/jaabell/Repositories/essi_verification_examples/Seismic_Wave_Propagation_Problems/1D_Wave_Pisano_soil/example_wave_1d_pisano.fei",
 			"settings":
 			{
-				"buffer_size": 7790,
-				"line_ending": "Unix"
-			}
-		},
-		{
-			"file": "/home/jaabell/useful_commands.md",
-			"settings":
-			{
-				"buffer_size": 4036,
+				"buffer_size": 7782,
 				"line_ending": "Unix"
 			}
 		},
@@ -571,7 +563,7 @@
 			"file": "visitESSI.xml",
 			"settings":
 			{
-				"buffer_size": 658,
+				"buffer_size": 653,
 				"line_ending": "Unix"
 			}
 		}
@@ -1080,6 +1072,9 @@
 	},
 	"file_history":
 	[
+		"/home/jaabell/example3.fei",
+		"/home/jaabell/example3",
+		"/home/jaabell/useful_commands.md",
 		"/home/jaabell/Repositories/essi_verification_examples/Seismic_Wave_Propagation_Problems/1D_Wave_Pisano_soil/example_wave_1d_pisano.fei",
 		"/home/jaabell/.config/sublime-text-2/Packages/FEI Syntax-n-Snippets/fei.tmLanguage",
 		"/usr/local/visit/2.7.2/linux-x86_64/include/visit/avt/Database/Database/avtDatabase.h",
@@ -1204,10 +1199,7 @@
 		"/home/jaabell/Repositories/essi_feb_21_2014/CompGeoMechUCD_MaterialModeling/BardetConstraintLT.cpp",
 		"/home/jaabell/Repositories/essi_feb_21_2014/CompGeoMechUCD_MaterialModeling/BardetConstraintLT.h",
 		"/home/jaabell/Repositories/essi_feb_21_2014/CompGeoMechUCD_MaterialModeling/BardetConstraint.cpp",
-		"/home/jaabell/Repositories/essi_feb_21_2014/CompGeoMechUCD_MaterialModeling/LTensor_Based/Makefile",
-		"/home/jaabell/Repositories/essi_feb_21_2014/CompGeoMechUCD_MaterialModeling/LTensor_Based/NDMaterialLT.cpp",
-		"/home/jaabell/Repositories/essi_feb_21_2014/CompGeoMechUCD_MaterialModeling/LTensor_Based/NDMaterialLT.h",
-		"/home/jaabell/Repositories/essi_feb_21_2014/CompGeoMechUCD_MaterialModeling/NewTemplate3Dep/NewTemplate3Dep.cpp"
+		"/home/jaabell/Repositories/essi_feb_21_2014/CompGeoMechUCD_MaterialModeling/LTensor_Based/Makefile"
 	],
 	"find":
 	{
@@ -1225,6 +1217,13 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"];\n",
+			" / ",
+			"mainmesh_pts",
+			"delete",
+			"id_file",
+			"timestate",
+			"h5close",
 			"-",
 			";\n",
 			"origin",
@@ -1345,14 +1344,7 @@
 			"length_nodes_reaction_forcess_output",
 			"length_nodes_displacements_output",
 			"id_nodes_accelerations",
-			"id_nodes_displacements",
-			"cout",
-			"id_nodes_ndofs",
-			"pos_nodes_ouputs",
-			"cout",
-			"add load",
-			"	\n",
-			"close"
+			"id_nodes_displacements"
 		],
 		"highlight": true,
 		"in_selection": false,
@@ -1360,6 +1352,7 @@
 		"regex": false,
 		"replace_history":
 		[
+			"/",
 			"",
 			"outputVector",
 			"OutputVector(ELASTIC_BEAM_OUTPUT_SIZE),",
@@ -1397,7 +1390,7 @@
 	"groups":
 	[
 		{
-			"selected": 3,
+			"selected": 1,
 			"sheets":
 			[
 				{
@@ -1405,15 +1398,15 @@
 					"file": "avtvisitESSIFileFormat.h",
 					"settings":
 					{
-						"buffer_size": 4632,
+						"buffer_size": 5315,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								0,
-								0
+								5258,
+								5258
 							]
 						],
 						"settings":
@@ -1512,7 +1505,7 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 936.0,
+						"translation.y": 1248.0,
 						"zoom_level": 1.0
 					},
 					"type": "text"
@@ -1522,28 +1515,15 @@
 					"file": "avtvisitESSIFileFormat.C",
 					"settings":
 					{
-						"buffer_size": 24582,
+						"buffer_size": 33908,
 						"regions":
 						{
-							"bookmarks":
-							{
-								"flags": 144,
-								"icon": "bookmark",
-								"regions":
-								[
-									[
-										4208,
-										4208
-									]
-								],
-								"scope": "bookmarks"
-							}
 						},
 						"selection":
 						[
 							[
-								17146,
-								17146
+								17261,
+								17261
 							]
 						],
 						"settings":
@@ -1642,7 +1622,7 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 5883.0,
+						"translation.y": 5460.0,
 						"zoom_level": 1.0
 					},
 					"type": "text"
@@ -1652,15 +1632,15 @@
 					"file": "/home/jaabell/Repositories/essi_verification_examples/Seismic_Wave_Propagation_Problems/1D_Wave_Pisano_soil/example_wave_1d_pisano.fei",
 					"settings":
 					{
-						"buffer_size": 7790,
+						"buffer_size": 7782,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								690,
-								690
+								3655,
+								3655
 							]
 						],
 						"settings":
@@ -1758,131 +1738,13 @@
 							"translate_tabs_to_spaces": false
 						},
 						"translation.x": 0.0,
-						"translation.y": 39.0,
+						"translation.y": 1131.0,
 						"zoom_level": 1.0
 					},
 					"type": "text"
 				},
 				{
 					"buffer": 3,
-					"file": "/home/jaabell/useful_commands.md",
-					"settings":
-					{
-						"buffer_size": 4036,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								2689,
-								2689
-							]
-						],
-						"settings":
-						{
-							"annotations":
-							[
-								"TODO",
-								"README",
-								"FIXME"
-							],
-							"csslint_options":
-							{
-								"adjoining-classes": "warning",
-								"box-model": true,
-								"box-sizing": "warning",
-								"compatible-vendor-prefixes": "warning",
-								"display-property-grouping": true,
-								"duplicate-background-images": "warning",
-								"duplicate-properties": true,
-								"empty-rules": true,
-								"errors": true,
-								"fallback-colors": "warning",
-								"floats": "warning",
-								"font-faces": "warning",
-								"font-sizes": "warning",
-								"gradients": "warning",
-								"ids": "warning",
-								"import": "warning",
-								"important": "warning",
-								"known-properties": true,
-								"outline-none": "warning",
-								"overqualified-elements": "warning",
-								"qualified-headings": "warning",
-								"regex-selectors": "warning",
-								"rules-count": "warning",
-								"shorthand": "warning",
-								"star-property-hack": "warning",
-								"text-indent": "warning",
-								"underscore-property-hack": "warning",
-								"unique-headings": "warning",
-								"universal-selector": "warning",
-								"vendor-prefix": true,
-								"zero-units": "warning"
-							},
-							"gjslint_ignore":
-							[
-								110
-							],
-							"gjslint_options":
-							[
-							],
-							"javascript_linter": "jshint",
-							"jshint_options":
-							{
-								"browser": true,
-								"evil": true,
-								"regexdash": true,
-								"sub": true,
-								"trailing": true,
-								"wsh": true
-							},
-							"parser": "github",
-							"pep8": true,
-							"pep8_ignore":
-							[
-								"E501"
-							],
-							"perl_linter": "perlcritic",
-							"pyflakes_ignore":
-							[
-							],
-							"pyflakes_ignore_import_*": true,
-							"sublimelinter": true,
-							"sublimelinter_delay": 2,
-							"sublimelinter_disable":
-							[
-							],
-							"sublimelinter_executable_map":
-							{
-							},
-							"sublimelinter_fill_outlines": false,
-							"sublimelinter_gutter_marks": true,
-							"sublimelinter_gutter_marks_theme": "simple",
-							"sublimelinter_mark_style": "none",
-							"sublimelinter_notes": false,
-							"sublimelinter_objj_check_ascii": false,
-							"sublimelinter_popup_errors_on_save": false,
-							"sublimelinter_syntax_map":
-							{
-								"C++": "c",
-								"Python Django": "python",
-								"Ruby on Rails": "ruby"
-							},
-							"sublimelinter_wrap_find": true,
-							"syntax": "Packages/Markdown/Markdown.tmLanguage",
-							"target": "disk",
-							"translate_tabs_to_spaces": false
-						},
-						"translation.x": 0.0,
-						"translation.y": 1299.0,
-						"zoom_level": 1.0
-					},
-					"type": "text"
-				},
-				{
-					"buffer": 4,
 					"file": "/home/jaabell/Repositories/essi_verification_examples/Seismic_Wave_Propagation_Problems/1D_Wave_Pisano_soil/gen_incoming_wave.py",
 					"settings":
 					{
@@ -1997,7 +1859,7 @@
 					"type": "text"
 				},
 				{
-					"buffer": 5,
+					"buffer": 4,
 					"file": "/home/jaabell/.config/sublime-text-2/Packages/User/Package Control.sublime-settings",
 					"settings":
 					{
@@ -2113,19 +1975,19 @@
 					"type": "text"
 				},
 				{
-					"buffer": 6,
+					"buffer": 5,
 					"file": "visitESSI.xml",
 					"settings":
 					{
-						"buffer_size": 658,
+						"buffer_size": 653,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								658,
-								658
+								0,
+								0
 							]
 						],
 						"settings":
@@ -2815,7 +2677,7 @@
 		[
 			[
 				"",
-				"/home/jaabell/Repositories/lecture_notes.sublime-project"
+				"/home/jaabell/Repositories/essi_current.sublime-project"
 			]
 		],
 		"width": 380.0

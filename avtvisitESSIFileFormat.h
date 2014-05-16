@@ -133,12 +133,6 @@ class avtvisitESSIFileFormat : public avtMTMDFileFormat
         vtkUnstructuredGrid *mainmesh_data;
         vtkUnstructuredGrid *gaussmesh_data;
 
-        float *mainmesh_pts;
-        int *connectivity;
-        int *tags2pointnumbers;
-        int *elements_nnodes;
-
-        hsize_t id_elements_nnodes_nvals;
 };
 
 
