@@ -73,7 +73,8 @@ class avtvisitESSIFileFormat : public avtMTMDFileFormat
         avtvisitESSIFileFormat(const char *);
         virtual           ~avtvisitESSIFileFormat()
         {
-            ;
+            delete [] gauss_to_element_tag;
+            delete [] number_of_gauss_points;
         };
 
         //
@@ -130,6 +131,9 @@ class avtvisitESSIFileFormat : public avtMTMDFileFormat
 
         bool returned_mainmesh_already;
         bool returned_gaussmesh_already;
+
+        int *gauss_to_element_tag;
+        int *number_of_gauss_points;
 
         vtkUnstructuredGrid *mainmesh_data;
         vtkUnstructuredGrid *gaussmesh_data;

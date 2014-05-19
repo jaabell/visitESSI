@@ -97,6 +97,8 @@ avtvisitESSIFileFormat::avtvisitESSIFileFormat(const char *filename)
 }
 
 
+
+
 // ****************************************************************************
 //  Method: avtvisitESSIFileFormat::FreeUpResources
 //
@@ -507,7 +509,6 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
                             if (visit_vertex_number >= 0)
                             {
                                 verts[j] = visit_vertex_number;
-
                             }
                             else
                             {
@@ -552,47 +553,67 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             int origin = 0;
             herr_t status;
 
-            //////////////////////////////////////////////////////////////////////////////////////////
-            // Nodes
-            //////////////////////////////////////////////////////////////////////////////////////////
-
 
             cout << "visitESSI: Reading GP Info\n\n";
 
-
-            //Get the number of defined nodes
-            hid_t id_nodes_coordinates                    = H5Dopen2(id_file, "/Model/Elements/Gauss_Point_Coordinates", H5P_DEFAULT);
-            hid_t id_coordinates_dataspace                = H5Dget_space(id_nodes_coordinates);
-            hsize_t id_nodes_coordinates_nvals            = H5Sget_simple_extent_npoints(id_coordinates_dataspace);
-            ngauss                                        = static_cast<int> (id_nodes_coordinates_nvals) / 3;
+            //Get the number of defined gausspoints
+            hid_t id_gausspoints_coordinates                    = H5Dopen2(id_file, "/Model/Elements/Gauss_Point_Coordinates", H5P_DEFAULT);
+            hid_t id_coordinates_dataspace                = H5Dget_space(id_gausspoints_coordinates);
+            hsize_t id_gausspoints_coordinates_nvals            = H5Sget_simple_extent_npoints(id_coordinates_dataspace);
+            ngauss                                        = static_cast<int> (id_gausspoints_coordinates_nvals) / 3;
 
 
             //Get number of maximum possibly defined tags :/
-            hid_t id_nodes_index_to_coordinates           = H5Dopen2(id_file, "/Model/Elements/Index_to_Gauss_Point_Coordinates", H5P_DEFAULT);
-            hid_t id_nodes_index_to_coordinates_dataspace = H5Dget_space(id_nodes_index_to_coordinates);
-            hsize_t nodes_number_of_tags_max              = H5Sget_simple_extent_npoints(id_nodes_index_to_coordinates_dataspace);
+            hid_t id_gausspoints_index_to_coordinates           = H5Dopen2(id_file, "/Model/Elements/Index_to_Gauss_Point_Coordinates", H5P_DEFAULT);
+            hid_t id_gausspoints_index_to_coordinates_dataspace = H5Dget_space(id_gausspoints_index_to_coordinates);
+            hsize_t gausspoints_number_of_tags_max              = H5Sget_simple_extent_npoints(id_gausspoints_index_to_coordinates_dataspace);
 
-            //Get the index to coordinates
-            int *index_to_coordinates = new int[nodes_number_of_tags_max];
-            status = H5Dread(id_nodes_index_to_coordinates, H5T_NATIVE_INT, H5S_ALL   , id_nodes_index_to_coordinates_dataspace, H5P_DEFAULT,
+            //Get the index to coordinates of GPS
+            int *index_to_coordinates = new int[gausspoints_number_of_tags_max];
+            status = H5Dread(id_gausspoints_index_to_coordinates, H5T_NATIVE_INT, H5S_ALL   , id_gausspoints_index_to_coordinates_dataspace, H5P_DEFAULT,
                              index_to_coordinates);
 
+            //Get number of Gauss points per element
+            hid_t id_number_of_gausspoints           = H5Dopen2(id_file, "/Model/Elements/Number_of_Gauss_Points", H5P_DEFAULT);
+            hid_t id_number_of_gausspoints_dataspace = H5Dget_space(id_number_of_gausspoints);
+
+
+            //Get the number of GPs
+            int *number_of_gauss_points = new int[gausspoints_number_of_tags_max];
+            status = H5Dread(id_number_of_gausspoints, H5T_NATIVE_INT, H5S_ALL   , id_number_of_gausspoints_dataspace, H5P_DEFAULT,
+                             number_of_gauss_points);
 
 
 
-            // Write the nodes
+            //Build an index that relates number of a gauss point to the element it belongs to
+            gauss_to_element_tag = new int[ngauss];
+            int gaussnumber = 0;
 
-            //
-            // Create the vtkPoints object and copy points into it.
-            //
+            for (int tag = 0; tag < gausspoints_number_of_tags_max; tag++)
+            {
+                if (index_to_coordinates[tag] >= 0)
+                {
+                    int number_of_gauss_points_for_this_element;
+                    number_of_gauss_points_for_this_element = number_of_gauss_points[tag];
+                    for (int g = 0; g < number_of_gauss_points_for_this_element; g++)
+                    {
+                        gauss_to_element_tag[gaussnumber] = tag;
+                        gaussnumber++;
+                    }
+                }
+            }
+
+
+            // Write the gausspoints
             vtkPoints *points = vtkPoints::New();
+
             points->SetNumberOfPoints(ngauss);
             float *pts        = (float *) points->GetVoidPointer(0);
 
             //Read values of coordinates from HDF5 directly into the VTK pts pointer
             const hsize_t dims[1]          = {ngauss * 3};
             hid_t memspace                 = H5Screate_simple(1, dims, dims);
-            status = H5Dread(id_nodes_coordinates, H5T_NATIVE_FLOAT, memspace, id_coordinates_dataspace, H5P_DEFAULT,
+            status = H5Dread(id_gausspoints_coordinates, H5T_NATIVE_FLOAT, memspace, id_coordinates_dataspace, H5P_DEFAULT,
                              pts);
 
             cout << "visitESSI: Done reading Gauss Points. Read " << ngauss << " GP coordinate values.\n\n";
@@ -600,21 +621,12 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
 
             //Free up memory.
             delete [] index_to_coordinates;
-            H5Dclose(id_nodes_coordinates);
+            // delete [] number_of_gauss_points;
+            H5Dclose(id_gausspoints_coordinates);
             H5Sclose(id_coordinates_dataspace);
-            H5Dclose(id_nodes_index_to_coordinates);
-            H5Sclose(id_nodes_index_to_coordinates_dataspace);
-
-            cout << "List of GPs \n";
-            int j = 0;
-            for (int i = 0; i < ngauss; i++)
-            {
-                cout << pts[j++] << " " << pts[j++] << " " << pts[j++] << "\n";
-            }
-
-
-
-            // cout << "visitESSI: Added " << number_of_added_elements << " elements of " << ncells << " total available.\n\n";
+            H5Dclose(id_gausspoints_index_to_coordinates);
+            H5Sclose(id_number_of_gausspoints);
+            H5Sclose(id_number_of_gausspoints_dataspace);
 
             //
             // Create a vtkUnstructuredGrid to contain the point cells.
@@ -711,20 +723,6 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
 vtkDataArray *
 avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varname)
 {
-    // return 0; //YOU MUST IMPLEMENT THIS
-    //
-    // If you have a file format where variables don't apply (for example a
-    // strictly polygonal format like the STL (Stereo Lithography) format,
-    // then uncomment the code below.
-    //
-    // EXCEPTION1(InvalidVariableException, varname);
-    //
-
-    //
-    // If you do have a vector variable, here is some code that may be helpful.
-    //
-    // std::string name = varname;
-
     cout << "visitESSI: Trying to get " << varname << " at t = " << timestate << "  \n\n";
 
     if (strcmp(varname, "Generalized Displacements") == 0)
@@ -739,48 +737,31 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
         rv->SetNumberOfComponents(ucomps);
         rv->SetNumberOfTuples(ntuples);
 
-        // cout << "visitESSI: Opening HDF5 file. \n";
         //Get the  connectivity
         hid_t id_nodes_index_to_output = H5Dopen2(id_file, "/Model/Nodes/Index_to_Generalized_Displacements", H5P_DEFAULT);
-        // hid_t id_nodes_index_to_output = H5Dopen2(id_file, "/Model/Nodes/Index_to_Nodes_Output", H5P_DEFAULT);
         hid_t id_nodes_index_to_output_dataspace = H5Dget_space(id_nodes_index_to_output);
         hsize_t id_nodes_index_to_output_nvals  = H5Sget_simple_extent_npoints(id_nodes_index_to_output_dataspace);
-
         int *index_to_output  = new int[id_nodes_index_to_output_nvals];
-
-        // cout << "visitESSI: Reading displacements index. \n";
         H5Dread(id_nodes_index_to_output, H5T_NATIVE_INT, H5S_ALL   , id_nodes_index_to_output_dataspace, H5P_DEFAULT,
                 index_to_output);
+
         H5Dclose(id_nodes_index_to_output);
         H5Sclose(id_nodes_index_to_output_dataspace);
-        // cout << "            Done!                       \n";
 
 
-        // cout << "visitESSI: Getting extents \n";
+
         //Open up displacements for reading
         hid_t id_nodes_displacements = H5Dopen2(id_file, "/Model/Nodes/Generalized_Displacements", H5P_DEFAULT);
-        // hid_t id_nodes_displacements = H5Dopen2(id_file, "/Model/Nodes/Displacements", H5P_DEFAULT);
         hid_t id_nodes_displacements_dataspace = H5Dget_space(id_nodes_displacements);
         int node_displacements_ndims = H5Sget_simple_extent_ndims(id_nodes_displacements_dataspace);
-        // cout << "node_displacements_ndims = " << node_displacements_ndims << endl;
-
         hsize_t dims[node_displacements_ndims];
         hsize_t maxdims[node_displacements_ndims];
         H5Sget_simple_extent_dims(id_nodes_displacements_dataspace, dims, maxdims );
-
-        // cout << "                          Got dims" << endl;
-
-        // for (int i = 0; i < node_displacements_ndims; i++)
-        // {
-        //     cout << "      dim[" << i << "] = " << dims[i] <<  "\n";
-        // }
 
 
         //Create description of data in memory
         hsize_t datadims[1] = {dims[0]};
         hid_t memspace  = H5Screate_simple(1, datadims, datadims);
-
-        // cout << "visitESSI: Selecting.\n";
 
         //Try to get all the displacements now
         float *displacements = new float[dims[0]];
@@ -791,16 +772,15 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
         const hsize_t block[2] = {1, 1};
 
         H5Sselect_hyperslab( id_nodes_displacements_dataspace, H5S_SELECT_SET, start, stride, count, block );
-
-        // cout << "visitESSI: Reading displacements for this step into memory. \n";
         H5Dread(id_nodes_displacements, H5T_NATIVE_FLOAT, memspace   , id_nodes_displacements_dataspace, H5P_DEFAULT,
                 displacements);
 
+        //Creanup
         H5Dclose(id_nodes_displacements);
         H5Sclose(id_nodes_displacements_dataspace);
         H5Sclose(memspace);
 
-        // cout << "visitESSI : Loading displacements into VTK object. \n";
+        //Write the data to VTK
         float *one_entry = new float[ucomps];
         float *d = displacements;
         for (int i = 0 ; i < ntuples ; i++)
@@ -818,6 +798,110 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
 
 
         return rv;
+    }
+
+    // =============================================================================================
+    // =============================================================================================
+    // =============================================================================================
+    // =============================================================================================
+    // =============================================================================================
+    // =============================================================================================
+    // =============================================================================================
+    // =============================================================================================
+    // =============================================================================================
+
+    else if (strcmp(varname, "Stress") == 0)
+    {
+        cout << "visitESSI: Getting stress. \n\n";
+        int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
+        int ntuples = ngauss; // this is the number of entries in the variable.
+        int ucomps = 9;
+
+
+        vtkFloatArray *rv = vtkFloatArray::New();
+        rv->SetNumberOfComponents(ucomps);
+        rv->SetNumberOfTuples(ntuples);
+
+
+        // Read output index
+        hid_t id_elements_index_to_outputs = H5Dopen2(id_file, "/Model/Elements/Index_to_Outputs", H5P_DEFAULT);
+        hid_t id_elements_index_to_outputs_dataspace = H5Dget_space(id_elements_index_to_outputs);
+        hsize_t id_elements_index_to_outputs_nvals  = H5Sget_simple_extent_npoints(id_elements_index_to_outputs_dataspace);
+        int *index_to_outputs  = new int[id_elements_index_to_outputs_nvals];
+        H5Dread(id_elements_index_to_outputs, H5T_NATIVE_INT, H5S_ALL   , id_elements_index_to_outputs_dataspace, H5P_DEFAULT,
+                index_to_outputs);
+        H5Dclose(id_elements_index_to_outputs);
+        H5Sclose(id_elements_index_to_outputs_dataspace);
+
+
+        // Read output
+        hid_t id_elements_outputs = H5Dopen2(id_file, "/Model/Elements/Outputs", H5P_DEFAULT);
+        hid_t id_elements_outputs_dataspace = H5Dget_space(id_elements_outputs);
+        int elements_outputs_ndims = H5Sget_simple_extent_ndims(id_elements_outputs_dataspace);
+        hsize_t dims[elements_outputs_ndims];
+        hsize_t maxdims[elements_outputs_ndims];
+        H5Sget_simple_extent_dims(id_elements_outputs_dataspace, dims, maxdims );
+
+
+        //Create description of data in memory
+        hsize_t datadims[1] = {dims[0]};
+        hid_t memspace  = H5Screate_simple(1, datadims, datadims);
+
+
+        //Try to get all the outputs (from all elements) now
+        float *outputs = new float[dims[0]];
+
+        const hsize_t start[2] = {0, timestate};
+        const hsize_t stride[2] = {1, 1};
+        const hsize_t count[2] = {dims[0], 1};
+        const hsize_t block[2] = {1, 1};
+
+        H5Sselect_hyperslab( id_elements_outputs_dataspace, H5S_SELECT_SET, start, stride, count, block );
+        H5Dread(id_elements_outputs, H5T_NATIVE_FLOAT, memspace   , id_elements_outputs_dataspace, H5P_DEFAULT,
+                outputs);
+
+        H5Dclose(id_elements_outputs);
+        H5Sclose(id_elements_outputs_dataspace);
+        H5Sclose(memspace);
+
+
+        float *one_entry = new float[ucomps];
+        int gptag = 0;
+        for (int tag = 0 ; tag < ncells ; tag++)
+        {
+            cout << "Ele = " << tag << endl;
+            // int tag = gauss_to_element_tag[gp];
+            int pos = index_to_outputs[tag];
+            int number_of_gauss_points_for_this_element = number_of_gauss_points[tag];
+            for (int gp = 0; gp < number_of_gauss_points_for_this_element; gp++)
+            {
+                cout  << "  gp = " << gp << "\n";
+                cout << "     s = [ ";
+                // float *s = outputs[ pos + 18 * gp + 12]; // 18 is the number of outputs per gauss-point first 6 are strains, next 6 are plastic strains and final 6 are stresses (hence the +12)
+                float *s = outputs + pos + 18 * gp + 12; // 18 is the number of outputs per gauss-point first 6 are strains, next 6 are plastic strains and final 6 are stresses (hence the +12)
+                for (int i = 0; i < 6; i++)
+                {
+                    one_entry[i] = *(s++);
+                    cout << one_entry[i] << " ";
+                }
+                cout << "]\n";
+                one_entry[6] = one_entry[3];
+                one_entry[7] = one_entry[4];
+                one_entry[8] = one_entry[5];
+
+
+                rv->SetTuple(gptag, one_entry);
+                gptag++;
+            }
+        }
+
+        delete [] one_entry;
+        delete [] index_to_outputs;
+        delete [] outputs;
+
+        return rv;
+
+
     }
     else
     {
