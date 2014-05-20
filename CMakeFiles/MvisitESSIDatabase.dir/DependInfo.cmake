@@ -16,6 +16,8 @@ SET(CMAKE_TARGET_DEFINITIONS
   "HAVE_LIBGLEW"
   "HAVE_LIBSLIVR"
   "MDSERVER"
+  "HAVE_LIBGLEW"
+  "HAVE_LIBSLIVR"
   )
 
 # Targets to which this target links.

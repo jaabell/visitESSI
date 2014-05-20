@@ -296,14 +296,14 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
 
 
 
-    if (strcmp(meshname, mainmesh.c_str()) == 0)
+    if (strcmp(meshname, mainmesh.c_str()) == 0 )
     {
         // If this is the first time reading the mesh data -> load it into memory!!
         if (mainmesh_data == NULL)
         {
             int ndims  = 3;
             int origin = 0;
-            ncells = 0;
+            // ncells = 0;
             herr_t status;
 
             // float *mainmesh_pts;
@@ -327,7 +327,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             hid_t id_nodes_coordinates                    = H5Dopen2(id_file, "/Model/Nodes/Coordinates", H5P_DEFAULT);
             hid_t id_coordinates_dataspace                = H5Dget_space(id_nodes_coordinates);
             hsize_t id_nodes_coordinates_nvals            = H5Sget_simple_extent_npoints(id_coordinates_dataspace);
-            nnodes                                        = static_cast<int> (id_nodes_coordinates_nvals) / 3;
+            // nnodes                                        = static_cast<int> (id_nodes_coordinates_nvals) / 3;
             //Get number of maximum possibly defined tags :/
             hid_t id_nodes_index_to_coordinates           = H5Dopen2(id_file, "/Model/Nodes/Index_to_Coordinates", H5P_DEFAULT);
             hid_t id_nodes_index_to_coordinates_dataspace = H5Dget_space(id_nodes_index_to_coordinates);
@@ -403,13 +403,13 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
                              elements_nnodes);
 
             //Count number of "tags" which are > 0 (gives ncells)
-            for (int i = 0; i < id_elements_nnodes_nvals; i++)
-            {
-                if (elements_nnodes[i] >=  0)
-                {
-                    ncells++;
-                }
-            }
+            // for (int i = 0; i < id_elements_nnodes_nvals; i++)
+            // {
+            //     if (elements_nnodes[i] >=  0)
+            //     {
+            //         ncells++;
+            //     }
+            // }
             H5Dclose(id_elements_nnodes);
             H5Sclose(id_elements_nnodes_dataspace);
 
@@ -579,7 +579,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
 
 
             //Get the number of GPs
-            int *number_of_gauss_points = new int[gausspoints_number_of_tags_max];
+            number_of_gauss_points = new int[gausspoints_number_of_tags_max];
             status = H5Dread(id_number_of_gausspoints, H5T_NATIVE_INT, H5S_ALL   , id_number_of_gausspoints_dataspace, H5P_DEFAULT,
                              number_of_gauss_points);
 
@@ -625,7 +625,8 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             H5Dclose(id_gausspoints_coordinates);
             H5Sclose(id_coordinates_dataspace);
             H5Dclose(id_gausspoints_index_to_coordinates);
-            H5Sclose(id_number_of_gausspoints);
+            H5Sclose(id_gausspoints_index_to_coordinates_dataspace);
+            H5Dclose(id_number_of_gausspoints);
             H5Sclose(id_number_of_gausspoints_dataspace);
 
             //
@@ -864,31 +865,24 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
         H5Sclose(id_elements_outputs_dataspace);
         H5Sclose(memspace);
 
-
+        // cout << "ncells = " << ncells << endl;
         float *one_entry = new float[ucomps];
         int gptag = 0;
+        int order[9] = { 0 , 3,  4 , 3, 1, 5, 4, 5, 2 }; // This converts 6 component symmetric stress to 9 component general tensor... matrix is filled row-wise.
+        float maxstress = 0;
+        float minstress;
         for (int tag = 0 ; tag < ncells ; tag++)
         {
-            cout << "Ele = " << tag << endl;
-            // int tag = gauss_to_element_tag[gp];
             int pos = index_to_outputs[tag];
             int number_of_gauss_points_for_this_element = number_of_gauss_points[tag];
             for (int gp = 0; gp < number_of_gauss_points_for_this_element; gp++)
             {
-                cout  << "  gp = " << gp << "\n";
-                cout << "     s = [ ";
                 // float *s = outputs[ pos + 18 * gp + 12]; // 18 is the number of outputs per gauss-point first 6 are strains, next 6 are plastic strains and final 6 are stresses (hence the +12)
                 float *s = outputs + pos + 18 * gp + 12; // 18 is the number of outputs per gauss-point first 6 are strains, next 6 are plastic strains and final 6 are stresses (hence the +12)
-                for (int i = 0; i < 6; i++)
+                for (int i = 0; i < 9; i++)
                 {
-                    one_entry[i] = *(s++);
-                    cout << one_entry[i] << " ";
+                    one_entry[i] = *(s + order[i]);
                 }
-                cout << "]\n";
-                one_entry[6] = one_entry[3];
-                one_entry[7] = one_entry[4];
-                one_entry[8] = one_entry[5];
-
 
                 rv->SetTuple(gptag, one_entry);
                 gptag++;
@@ -946,6 +940,36 @@ void avtvisitESSIFileFormat::initialize()
             EXCEPTION1(InvalidDBTypeException,
                        "The file could not be opened");
         }
+
+        //Read number of time steps
+        hid_t id_num_tsteps = H5Dopen2(id_file, "/Number_of_Time_Steps", H5P_DEFAULT);
+        hid_t id_num_tsteps_dataspace = H5Dget_space(id_num_tsteps);
+        H5Dread(id_num_tsteps, H5T_NATIVE_INT, H5S_ALL   , id_num_tsteps_dataspace, H5P_DEFAULT,
+                &nsteps);
+        H5Dclose(id_num_tsteps);
+        H5Sclose(id_num_tsteps_dataspace);
+
+        //Read number of elements
+        hid_t id_num_elements = H5Dopen2(id_file, "/Number_of_Elements", H5P_DEFAULT);
+        hid_t id_num_elements_dataspace = H5Dget_space(id_num_elements);
+        H5Dread(id_num_elements, H5T_NATIVE_INT, H5S_ALL   , id_num_elements_dataspace, H5P_DEFAULT,
+                &ncells);
+        H5Dclose(id_num_elements);
+        H5Sclose(id_num_elements_dataspace);
+
+        //Read number of nodes
+        hid_t id_num_nodes = H5Dopen2(id_file, "/Number_of_Nodes", H5P_DEFAULT);
+        hid_t id_num_nodes_dataspace = H5Dget_space(id_num_nodes);
+        H5Dread(id_num_nodes, H5T_NATIVE_INT, H5S_ALL   , id_num_nodes_dataspace, H5P_DEFAULT,
+                &nnodes);
+        H5Dclose(id_num_nodes);
+        H5Sclose(id_num_nodes_dataspace);
+
+        cout << "Number of time-steps = " << nsteps << endl;
+        cout << "Number of nodes      = " << nnodes << endl;
+        cout << "Number of elements   = " << ncells << endl;
+
+        PopulateTimeAndNSteps();
 
         initialized = true;
     }
@@ -1005,7 +1029,11 @@ void avtvisitESSIFileFormat::PopulateTimeAndNSteps()
 
         cout << "visitESSI : feioutput file contains " << id_time_nvals << " timesteps.\n\n";
 
-        nsteps = id_time_nvals;
+        if (nsteps != id_time_nvals)
+        {
+            cerr << "Something wrong nsteps != id_time_nvals  ( " << nsteps << " != " << id_time_nvals << ") \n\n";
+        }
+        // nsteps = id_time_nvals;
 
         double *vals = new double[nsteps] ;
         H5Dread(id_time, H5T_NATIVE_DOUBLE, H5S_ALL   , id_time_dataspace, H5P_DEFAULT,
