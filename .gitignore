@@ -1,2 +1,7 @@
 *.o
 *.internal
+CMakeCache.txt
+CMakeFiles/*
+CMakeLists.txt
+Makefile
+cmake_install.cmake
