@@ -24,6 +24,8 @@ VisIt should be aware of plugin and be able to open `.feioutput` files.
 
 
 ---
+[UCD CompGeoMech](http://sokocalo.engr.ucdavis.edu/~jeremic/)
 
-Jose Abell
-Wed 28 May 2014 04:55:32 PM PDT
+Created by: [Jose Abell](www.joseabell.com)
+
+Last update to this timestamp: Wed 28 May 2014 04:55:32 PM PDT
