@@ -88,9 +88,9 @@ avtvisitESSIFileFormat::avtvisitESSIFileFormat(const char *filename)
     nsteps = -1;
 
     returned_gaussmesh_already = false;
-    returned_mainmesh_already = false;
+    returned_mesh3d_already = false;
 
-    mainmesh_data = NULL;
+    mesh3d_data = NULL;
     gaussmesh_data = NULL;
 
     initialized = false;
@@ -157,9 +157,30 @@ avtvisitESSIFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md, int ti
     //                   spatial_dimension, topological_dimension);
     //
 
-    mainmesh = "ESSI Domain Mesh";
+    mesh3d = "3D Elements Mesh";
     avtMeshMetaData *mmd = new avtMeshMetaData;
-    mmd->name = mainmesh.c_str();
+    mmd->name = mesh3d.c_str();
+    mmd->spatialDimension = 3;
+    mmd->topologicalDimension = 3;
+    mmd->meshType = AVT_UNSTRUCTURED_MESH;
+    mmd->numBlocks = 1;
+
+    md->Add(mmd);
+
+    mesh2d = "2D Elements Mesh";
+    avtMeshMetaData *mmd = new avtMeshMetaData;
+    mmd->name = mesh2d.c_str();
+    mmd->spatialDimension = 3;
+    mmd->topologicalDimension = 3;
+    mmd->meshType = AVT_UNSTRUCTURED_MESH;
+    mmd->numBlocks = 1;
+
+    md->Add(mmd);
+
+
+    mesh1d = "1D Elements Mesh";
+    avtMeshMetaData *mmd = new avtMeshMetaData;
+    mmd->name = mesh1d.c_str();
     mmd->spatialDimension = 3;
     mmd->topologicalDimension = 3;
     mmd->meshType = AVT_UNSTRUCTURED_MESH;
@@ -183,25 +204,29 @@ avtvisitESSIFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md, int ti
     //
     string varname = "Tag";
     avtCentering cent = AVT_NODECENT;
+    AddScalarVarToMetaData(md, varname, mesh3d, cent);
 
 
-    // sHere's the call that tells the meta-data object that we have a var:
-
-    AddScalarVarToMetaData(md, varname, mainmesh, cent);
-
-
-    //
-    // CODE TO ADD A VECTOR VARIABLE
-    //
-    varname = "Generalized Displacements";
+    //Expose displacements variable
+    varname = "Displacements";
     int vector_dim = 3;
-    cent = AVT_NODECENT; // AVT_NODECENT, AVT_ZONECENT, AVT_UNKNOWN_CENT
-    //
-    //
-    // Here's the call that tells the meta - data object that we have a var:
-    //
-    AddVectorVarToMetaData(md, varname, mainmesh, cent, vector_dim);
-    //
+    cent = AVT_NODECENT;
+    AddVectorVarToMetaData(md, varname, mesh3d, cent, vector_dim);
+
+
+    //Expose displacements variable
+    varname = "Fluid Displacements";
+    int vector_dim = 3;
+    cent = AVT_NODECENT;
+    AddVectorVarToMetaData(md, varname, mesh3d, cent, vector_dim);
+
+
+    //Expose displacements variable
+    varname = "Pore pressure";
+    int vector_dim = 3;
+    cent = AVT_NODECENT;
+    AddVectorVarToMetaData(md, varname, mesh3d, cent, vector_dim);
+
 
     //
     // CODE TO ADD A TENSOR VARIABLE
@@ -214,6 +239,8 @@ avtvisitESSIFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md, int ti
     varname = "Strain";
     AddTensorVarToMetaData(md, varname, gaussmesh, cent, tensor_dim);
 
+    varname = "Plastic Strain";
+    AddTensorVarToMetaData(md, varname, gaussmesh, cent, tensor_dim);
 
 
     // CODE TO ADD A MATERIAL
@@ -296,19 +323,19 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
 
 
 
-    if (strcmp(meshname, mainmesh.c_str()) == 0 )
+    if (strcmp(meshname, mesh3d.c_str()) == 0 )
     {
         // If this is the first time reading the mesh data -> load it into memory!!
-        if (mainmesh_data == NULL)
+        if (mesh3d_data == NULL)
         {
             int ndims  = 3;
             int origin = 0;
             // ncells = 0;
             herr_t status;
 
-            // float *mainmesh_pts;
+            // float *mesh3d_pts;
             int *connectivity;
-            int *tags2pointnumbers;
+            // int *tags2pointnumbers;
             int *elements_nnodes;
 
             hsize_t id_elements_nnodes_nvals;
@@ -342,18 +369,35 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
 
             //Form an array that transforms node "tags" to connectivity indexes
             tags2pointnumbers = new int[nodes_number_of_tags_max];
-            for (int i = 0; i < nodes_number_of_tags_max; i++)
+            pointnumbers2tags = new int[nodes_number_of_tags_max];
+            int point_number = 0;
+            for (int tag = 0; tag < nodes_number_of_tags_max; tag++)
             {
-                if (index_to_coordinates[i] >= 0)
+                if (index_to_coordinates[tag] >= 0) // This condition checks that the node tag exists (else it has -1 in index to coord)
                 {
-                    tags2pointnumbers[i] = index_to_coordinates[i] / 3;
-
+                    tags2pointnumbers[tag] = point_number;
+                    pointnumbers2tags[point_number] = tag;
+                    point_number++;
                 }
-                else
+                else // tag does not exist so no corresponding point number is generated
                 {
-                    tags2pointnumbers[i] = -1;
+                    tags2pointnumbers[tag] = -1;
                 }
             }
+
+
+
+            //Get number of DOFS
+            hid_t id_nodes_number_of_dofs           = H5Dopen2(id_file, "/Model/Nodes/Number_of_DOFs", H5P_DEFAULT);
+            hid_t id_nodes_number_of_dofs_dataspace = H5Dget_space(id_nodes_number_of_dofs);
+
+            //Get the index to coordinates
+            number_of_dofs = new int[nodes_number_of_tags_max];
+            status = H5Dread(id_nodes_number_of_dofs, H5T_NATIVE_INT, H5S_ALL   , id_nodes_number_of_dofs_dataspace, H5P_DEFAULT,
+                             number_of_dofs);
+
+
+
 
 
             //
@@ -365,7 +409,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
 
 
 
-            // mainmesh_pts = new float[nnodes * 3];
+            // mesh3d_pts = new float[nnodes * 3];
 
             //Read values of coordinates from HDF5 directly into the VTK pts pointer
             const hsize_t dims[1]          = {nnodes * 3};
@@ -429,7 +473,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             H5Dclose(id_elements_connectivity);
             H5Sclose(id_elements_connectivity_dataspace);
 
-            returned_mainmesh_already = true;
+            returned_mesh3d_already = true;
 
             cout << "visitESSI: Done! \n\n";
 
@@ -440,10 +484,10 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             //
             // Create a vtkUnstructuredGrid to contain the point cells.
             //
-            mainmesh_data = vtkUnstructuredGrid::New();
-            mainmesh_data  -> SetPoints(points);
+            mesh3d_data = vtkUnstructuredGrid::New();
+            mesh3d_data  -> SetPoints(points);
             points -> Delete();
-            mainmesh_data  -> Allocate(ncells);
+            mesh3d_data  -> Allocate(ncells);
 
             vtkIdType verts[27];
 
@@ -519,14 +563,14 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
                         }
                     }
                     count += nverts;
-                    mainmesh_data->InsertNextCell(cellType, nverts, verts);
+                    mesh3d_data->InsertNextCell(cellType, nverts, verts);
                 }
             }
             cout << "visitESSI: Added " << number_of_added_elements << " elements of " << ncells << " total available.\n\n";
         }
 
-        mainmesh_data->Register(NULL);
-        return mainmesh_data;
+        mesh3d_data->Register(NULL);
+        return mesh3d_data;
     }   //Ends Brick Elements Mesh
 
 
@@ -726,9 +770,9 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
 {
     cout << "visitESSI: Trying to get " << varname << " at t = " << timestate << "  \n\n";
 
-    if (strcmp(varname, "Generalized Displacements") == 0)
+    if (strcmp(varname, "Displacements") == 0)
     {
-        cout << "visitESSI: Getting generalized displacements. \n\n";
+        cout << "visitESSI: Getting displacements. \n\n";
         int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
         int ntuples = nnodes; // this is the number of entries in the variable.
         int ucomps = 3;
@@ -789,14 +833,15 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
             one_entry[0] = *(d++);
             one_entry[1] = *(d++);
             one_entry[2] = *(d++);
+
+            d += number_of_dofs[pointnumbers2tags[i]] - 3;
+
             rv->SetTuple(i, one_entry);
         }
 
         delete [] one_entry;
         delete [] index_to_output;
         delete [] displacements;
-
-
 
         return rv;
     }

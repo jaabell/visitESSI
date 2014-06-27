@@ -127,15 +127,22 @@ class avtvisitESSIFileFormat : public avtMTMDFileFormat
         int nsteps;
         std::vector<double> t;
 
-        std::string mainmesh, gaussmesh;
+        std::string mesh3d, mesh2d, mesh1d, gaussmesh;
 
-        bool returned_mainmesh_already;
+        bool returned_mesh3d_already;
+        bool returned_mesh2d_already;
+        bool returned_mesh1d_already;
         bool returned_gaussmesh_already;
 
         int *gauss_to_element_tag;
         int *number_of_gauss_points;
+        int *number_of_dofs;
+        int *tags2pointnumbers;
+        int *pointnumbers2tags;
 
-        vtkUnstructuredGrid *mainmesh_data;
+        vtkUnstructuredGrid *mesh3d_data;
+        vtkUnstructuredGrid *mesh2d_data;
+        vtkUnstructuredGrid *mesh1d_data;
         vtkUnstructuredGrid *gaussmesh_data;
 
 };
