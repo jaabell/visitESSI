@@ -456,6 +456,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             //                                  0   1   2   3   4   5   6   7   8   9   10   11   12   13   14   15   16   17   18   19   20   21   22   23   24   25   26
             int essi_to_vtk_27nodebrick[27] = { 6,  5,  4,  7,  2,  1,  0,  3,  13, 12, 15,  14,   9,   8,  11,  10,  18,  17,  16,  19,  23,  21,  22,  24,  26,  25,  20 };
 
+            int essi_to_vtk_4nodeandes[4] = { 0 ,1, 2, 3 };
             //Loop over elements and add them
             int count = 0;
             int number_of_added_elements = 0;
@@ -490,6 +491,8 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
                     {
                         nverts = 4;
                         cellType = VTK_QUAD;
+                        access_order = essi_to_vtk_4nodeandes;
+                        found = true;
                     }
                     else if (elements_nnodes[i] == 1)
                     {
