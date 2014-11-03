@@ -62,8 +62,8 @@
 using     std::string;
 #include <vtkCellType.h>
 
-
-
+//For debugging (debug 4)
+#include <DebugStream.h>
 
 
 // My includes
@@ -277,7 +277,7 @@ vtkDataSet *
 avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
 {
     initialize();
-    // std::cout << "visitESSI: Getting Mesh: -> " <<  meshname <<  "\n\n" ;
+    debug4 << "visitESSI: Getting Mesh: -> " <<  meshname <<  "\n\n" ;
 
     // string mname = meshname;
 
@@ -318,7 +318,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             //////////////////////////////////////////////////////////////////////////////////////////
 
 
-            cout << "visitESSI: Reading Node Info\n\n";
+            debug4 << "visitESSI: Reading Node Info\n\n";
 
 
             //Get the number of defined nodes
@@ -374,7 +374,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
                              pts);
 
 
-            cout << "visitESSI: Done reading nodes. Read " << nnodes << " nodes values.\n\n";
+            debug4 << "visitESSI: Done reading nodes. Read " << nnodes << " nodes values.\n\n";
 
 
             //Free up memory.
@@ -388,7 +388,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             //////////////////////////////////////////////////////////////////////////////////////////
             //    ELEMENTS
             //////////////////////////////////////////////////////////////////////////////////////////
-            cout << "visitESSI: Reading Element Info\n\n";
+            debug4 << "visitESSI: Reading Element Info\n\n";
 
 
             //Get the number of elements (ncells)
@@ -414,9 +414,9 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             H5Sclose(id_elements_nnodes_dataspace);
 
 
-            cout << "visitESSI: Mesh has " << ncells <<  " elements. \n\n";
+            debug4 << "visitESSI: Mesh has " << ncells <<  " elements. \n\n";
 
-            cout << "visitESSI: Reading connectivity \n\n";
+            debug4 << "visitESSI: Reading connectivity \n\n";
 
             //Get the  connectivity
             hid_t id_elements_connectivity           = H5Dopen2(id_file, "/Model/Elements/Connectivity", H5P_DEFAULT);
@@ -431,10 +431,10 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
 
             returned_mainmesh_already = true;
 
-            cout << "visitESSI: Done! \n\n";
+            debug4 << "visitESSI: Done! \n\n";
 
 
-            cout << "visitESSI : Generating VTK nodes\n";
+            debug4 << "visitESSI : Generating VTK nodes\n";
 
 
             //
@@ -456,7 +456,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             //                                  0   1   2   3   4   5   6   7   8   9   10   11   12   13   14   15   16   17   18   19   20   21   22   23   24   25   26
             int essi_to_vtk_27nodebrick[27] = { 6,  5,  4,  7,  2,  1,  0,  3,  13, 12, 15,  14,   9,   8,  11,  10,  18,  17,  16,  19,  23,  21,  22,  24,  26,  25,  20 };
 
-            int essi_to_vtk_4nodeandes[4] = { 0 ,1, 2, 3 };
+            int essi_to_vtk_4nodeandes[4] = { 0 , 1, 2, 3 };
             //Loop over elements and add them
             int count = 0;
             int number_of_added_elements = 0;
@@ -525,7 +525,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
                     mainmesh_data->InsertNextCell(cellType, nverts, verts);
                 }
             }
-            cout << "visitESSI: Added " << number_of_added_elements << " elements of " << ncells << " total available.\n\n";
+            debug4 << "visitESSI: Added " << number_of_added_elements << " elements of " << ncells << " total available.\n\n";
         }
 
         mainmesh_data->Register(NULL);
@@ -557,7 +557,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             herr_t status;
 
 
-            cout << "visitESSI: Reading GP Info\n\n";
+            debug4 << "visitESSI: Reading GP Info\n\n";
 
             //Get the number of defined gausspoints
             hid_t id_gausspoints_coordinates                    = H5Dopen2(id_file, "/Model/Elements/Gauss_Point_Coordinates", H5P_DEFAULT);
@@ -619,7 +619,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             status = H5Dread(id_gausspoints_coordinates, H5T_NATIVE_FLOAT, memspace, id_coordinates_dataspace, H5P_DEFAULT,
                              pts);
 
-            cout << "visitESSI: Done reading Gauss Points. Read " << ngauss << " GP coordinate values.\n\n";
+            debug4 << "visitESSI: Done reading Gauss Points. Read " << ngauss << " GP coordinate values.\n\n";
 
 
             //Free up memory.
@@ -727,11 +727,11 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
 vtkDataArray *
 avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varname)
 {
-    cout << "visitESSI: Trying to get " << varname << " at t = " << timestate << "  \n\n";
+    debug4 << "visitESSI: Trying to get " << varname << " at t = " << timestate << "  \n\n";
 
     if (strcmp(varname, "Generalized Displacements") == 0)
     {
-        cout << "visitESSI: Getting generalized displacements. \n\n";
+        debug4 << "visitESSI: Getting generalized displacements. \n\n";
         int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
         int ntuples = nnodes; // this is the number of entries in the variable.
         int ucomps = 3;
@@ -816,7 +816,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
 
     else if (strcmp(varname, "Stress") == 0)
     {
-        cout << "visitESSI: Getting stress. \n\n";
+        debug4 << "visitESSI: Getting stress. \n\n";
         int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
         int ntuples = ngauss; // this is the number of entries in the variable.
         int ucomps = 9;
@@ -868,7 +868,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
         H5Sclose(id_elements_outputs_dataspace);
         H5Sclose(memspace);
 
-        // cout << "ncells = " << ncells << endl;
+        // debug4 << "ncells = " << ncells << endl;
         float *one_entry = new float[ucomps];
         int gptag = 0;
         int order[9] = { 0 , 3,  4 , 3, 1, 5, 4, 5, 2 }; // This converts 6 component symmetric stress to 9 component general tensor... matrix is filled row-wise.
@@ -902,7 +902,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
     }
     else
     {
-        cout << "visitESSI : Variable '" << varname <<  "' not available. \n\n";
+        debug4 << "visitESSI : Variable '" << varname <<  "' not available. \n\n";
     }
     return 0;
 }
@@ -928,9 +928,9 @@ void avtvisitESSIFileFormat::initialize()
     {
         bool okay = false;
 
-        cout << "visitESSI : Opening : " << filename_string << "\n\n";
+        debug4 << "visitESSI : Opening : " << filename_string << "\n\n";
         id_file = H5Fopen( filename_string.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
-        cout << "Got id  to file : " << id_file << "\n\n";
+        debug4 << "Got id  to file : " << id_file << "\n\n";
 
         if (id_file >= 0)
         {
@@ -939,7 +939,7 @@ void avtvisitESSIFileFormat::initialize()
 
         if (!okay)
         {
-            cout << "visitESSI : Could not open file.\n\n";
+            debug4 << "visitESSI : Could not open file.\n\n";
             EXCEPTION1(InvalidDBTypeException,
                        "The file could not be opened");
         }
@@ -968,9 +968,9 @@ void avtvisitESSIFileFormat::initialize()
         H5Dclose(id_num_nodes);
         H5Sclose(id_num_nodes_dataspace);
 
-        cout << "Number of time-steps = " << nsteps << endl;
-        cout << "Number of nodes      = " << nnodes << endl;
-        cout << "Number of elements   = " << ncells << endl;
+        debug4 << "Number of time-steps = " << nsteps << endl;
+        debug4 << "Number of nodes      = " << nnodes << endl;
+        debug4 << "Number of elements   = " << ncells << endl;
 
         PopulateTimeAndNSteps();
 
@@ -1023,14 +1023,14 @@ void avtvisitESSIFileFormat::PopulateTimeAndNSteps()
     {
 
         initialize();
-        cout << "visitESSI : Getting time\n\n";
+        debug4 << "visitESSI : Getting time\n\n";
         //Get the time dimension
         hid_t id_time = H5Dopen2(id_file, "/time", H5P_DEFAULT);
         hid_t id_time_dataspace = H5Dget_space(id_time);
         hsize_t id_time_nvals  = H5Sget_simple_extent_npoints(id_time_dataspace);
 
 
-        cout << "visitESSI : feioutput file contains " << id_time_nvals << " timesteps.\n\n";
+        debug4 << "visitESSI : feioutput file contains " << id_time_nvals << " timesteps.\n\n";
 
         if (nsteps != id_time_nvals)
         {
