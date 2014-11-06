@@ -73,8 +73,8 @@ class avtvisitESSIFileFormat : public avtMTMDFileFormat
         avtvisitESSIFileFormat(const char *);
         virtual           ~avtvisitESSIFileFormat()
         {
-            delete [] gauss_to_element_tag;
-            delete [] number_of_gauss_points;
+            FreeUpResources();
+            // Maybe need to destroy VTK objects????
         };
 
         //
@@ -134,6 +134,9 @@ class avtvisitESSIFileFormat : public avtMTMDFileFormat
 
         int *gauss_to_element_tag;
         int *number_of_gauss_points;
+        int *number_of_dofs;
+        int *tags2pointnumbers;
+        int *pointnumbers2tags;
 
         vtkUnstructuredGrid *mainmesh_data;
         vtkUnstructuredGrid *gaussmesh_data;

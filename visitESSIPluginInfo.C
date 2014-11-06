@@ -166,7 +166,7 @@ std::vector<std::string>
 visitESSIGeneralPluginInfo::GetDefaultFilePatterns() const
 {
     std::vector<std::string> defaultPatterns;
-    defaultPatterns.push_back("feioutput");
+    defaultPatterns.push_back("*.h5.feioutput");
 
     return defaultPatterns;
 }
