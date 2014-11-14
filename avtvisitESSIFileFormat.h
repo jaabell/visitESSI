@@ -125,6 +125,10 @@ class avtvisitESSIFileFormat : public avtMTMDFileFormat
         int ngauss;
         int ncells;
         int nsteps;
+
+        int max_ele_tag;
+        int max_node_tag;
+        
         std::vector<double> t;
 
         std::string mainmesh, gaussmesh;
@@ -137,6 +141,8 @@ class avtvisitESSIFileFormat : public avtMTMDFileFormat
         int *number_of_dofs;
         int *tags2pointnumbers;
         int *pointnumbers2tags;
+        int *tags2cellnumbers;
+        int *cellnumbers2tags;
 
         vtkUnstructuredGrid *mainmesh_data;
         vtkUnstructuredGrid *gaussmesh_data;

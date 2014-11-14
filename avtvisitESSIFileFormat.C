@@ -45,6 +45,7 @@
 #include <string>
 
 #include <vtkFloatArray.h>
+#include <vtkIntArray.h>
 #include <vtkPoints.h>
 #include <vtkRectilinearGrid.h>
 #include <vtkStructuredGrid.h>
@@ -142,6 +143,16 @@ avtvisitESSIFileFormat::FreeUpResources(void)
         delete [] pointnumbers2tags;
         pointnumbers2tags = 0;
     }
+    if(tags2cellnumbers)
+    {
+        delete [] tags2cellnumbers;
+        tags2cellnumbers = 0;
+    }
+    if(cellnumbers2tags)
+    {
+        delete [] cellnumbers2tags;
+        cellnumbers2tags = 0;
+    }
 }
 
 
@@ -211,10 +222,17 @@ avtvisitESSIFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md, int ti
     AddScalarVarToMetaData(md, varname, mainmesh, cent);
 
 
-    // sHere's the call that tells the meta-data object that we have a var:
-
+    varname = "Element Tag";
+    cent = AVT_ZONECENT;
     AddScalarVarToMetaData(md, varname, mainmesh, cent);
 
+    varname = "Element Partition";
+    cent = AVT_ZONECENT;
+    AddScalarVarToMetaData(md, varname, mainmesh, cent);
+
+    varname = "Element Type";
+    cent = AVT_ZONECENT;
+    AddScalarVarToMetaData(md, varname, mainmesh, cent);
 
     //
     // CODE TO ADD A VECTOR VARIABLE
@@ -443,20 +461,32 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             hid_t id_elements_nnodes_dataspace = H5Dget_space(id_elements_nnodes);
             id_elements_nnodes_nvals  = H5Sget_simple_extent_npoints(id_elements_nnodes_dataspace);
 
-
+            max_ele_tag = id_elements_nnodes;
 
             elements_nnodes  = new int[id_elements_nnodes_nvals];
             status = H5Dread(id_elements_nnodes, H5T_NATIVE_INT, H5S_ALL   , id_elements_nnodes_dataspace, H5P_DEFAULT,
                              elements_nnodes);
 
-            //Count number of "tags" which are > 0 (gives ncells)
-            // for (int i = 0; i < id_elements_nnodes_nvals; i++)
-            // {
-            //     if (elements_nnodes[i] >=  0)
-            //     {
-            //         ncells++;
-            //     }
-            // }
+            max_node_tag = id_elements_nnodes_nvals;
+
+            tags2cellnumbers = new int[id_elements_nnodes_nvals];
+            cellnumbers2tags = new int[id_elements_nnodes_nvals];
+            int cellnumber = 0;
+            for (int tag = 0; tag < id_elements_nnodes_nvals; tag++)
+            {
+                if (elements_nnodes[tag] >= 0) // This condition checks that the element tag exists (else it has -1 in number of nodes)
+                {
+                    tags2cellnumbers[tag] = cellnumber;
+                    cellnumbers2tags[cellnumber] = tag;
+                    cellnumber++;
+                }
+                else // tag does not exist so no corresponding cell number is generated
+                {
+                    tags2cellnumbers[tag] = -1;
+                }
+            }
+
+
             H5Dclose(id_elements_nnodes);
             H5Sclose(id_elements_nnodes_dataspace);
 
@@ -524,28 +554,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
 
                     nverts = elements_nnodes[tag];
                     number_of_added_elements++;
-                    if (nverts == 8)
-                    {
-                        cellType = VTK_HEXAHEDRON;
-                        access_order = essi_to_vtk_8nodebrick;
-                        found = true;
-                    }
-                    else if (nverts == 27)
-                    {
-                        // nverts = 27;
-                        cellType = VTK_TRIQUADRATIC_HEXAHEDRON;
-                        access_order = essi_to_vtk_27nodebrick;
-                        found = true;
-                    }
-                    else if (nverts == 4)
-                    {
-                        // nverts = 4;
-                        cellType = VTK_QUAD;
-                        access_order = essi_to_vtk_4nodeandes;
-                        found = true;
-                        cout << "Shell!\n";
-                    }
-                    else if (nverts == 1)
+                    if (nverts == 1)
                     {
                         // nverts = 1;
                         cellType = VTK_VERTEX;
@@ -557,6 +566,26 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
                         // nverts = 2;
                         cellType = VTK_LINE;
                         access_order = essi_to_vtk_beam;
+                        found = true;
+                    }
+                    else if (nverts == 4)
+                    {
+                        // nverts = 4;
+                        cellType = VTK_QUAD;
+                        access_order = essi_to_vtk_4nodeandes;
+                        found = true;
+                    }
+                    else if (nverts == 8)
+                    {
+                        cellType = VTK_HEXAHEDRON;
+                        access_order = essi_to_vtk_8nodebrick;
+                        found = true;
+                    }
+                    else if (nverts == 27)
+                    {
+                        // nverts = 27;
+                        cellType = VTK_TRIQUADRATIC_HEXAHEDRON;
+                        access_order = essi_to_vtk_27nodebrick;
                         found = true;
                     }
                     if (found)
@@ -738,7 +767,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
 vtkDataArray *
 avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
 {
-    return 0;//YOU MUST IMPLEMENT THIS
+    // return 0;//YOU MUST IMPLEMENT THIS
 
     //
     // If you have a file format where variables don't apply (for example a
@@ -750,16 +779,155 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
 
     //
     // If you do have a scalar variable, here is some code that may be helpful.
-    //
-    // int ntuples = XXX; // this is the number of entries in the variable.
-    // vtkFloatArray *rv = vtkFloatArray::New();
-    // rv->SetNumberOfTuples(ntuples);
-    // for (int i = 0 ; i < ntuples ; i++)
-    // {
-    //      rv->SetTuple1(i, VAL);  // you must determine value for ith entry.
-    // }
-    //
-    // return rv;
+    
+    int ntuples; // this is the number of entries in the variable.
+    vtkIntArray *rv;
+    cout << "GetVar(" << timestate << ", " << domain << ", " << varname << ")\n";
+    if(strcmp(varname, "Node Tag") == 0)
+    {
+        // cout << "Getting Node tag\n";
+        rv = vtkIntArray::New();
+        ntuples = nnodes;
+        rv->SetNumberOfTuples(ntuples);
+        if(pointnumbers2tags)
+        {
+            for (int i = 0 ; i < ntuples ; i++)
+                {
+                    // cout << "point = " << i << ",  tag = " << pointnumbers2tags[i] << ", nnodes = " << nnodes << endl;
+                    rv->SetTuple1(i, pointnumbers2tags[i]);  // you must determine value for ith entry.
+                }
+        }
+        else
+        {
+            cerr << "avtvisitESSIFileFormat::GetVar() - pointnumbers2tags not set\n";
+        }
+    }
+    else if(strcmp(varname, "Element Tag") == 0)
+    {
+                // cout << "Getting Node tag\n";
+        rv = vtkIntArray::New();
+        ntuples = ncells;
+        rv->SetNumberOfTuples(ntuples);
+        if(pointnumbers2tags)
+        {
+            for (int i = 0 ; i < ntuples ; i++)
+                {
+                    // cout << "point = " << i << ",  tag = " << pointnumbers2tags[i] << ", nnodes = " << nnodes << endl;
+                    rv->SetTuple1(i, cellnumbers2tags[i]);  // you must determine value for ith entry.
+                }
+        }
+        else
+        {
+            EXCEPTION1(InvalidVariableException, varname);
+            cerr << "avtvisitESSIFileFormat::GetVar() - pointnumbers2tags not set\n";
+        }
+    }
+    else if(strcmp(varname, "Element Partition") == 0)
+    {
+                        // cout << "Getting Node tag\n";
+
+
+        hid_t id_partition           = H5Dopen2(id_file, "/Model/Elements/Partition", H5P_DEFAULT);
+        if(id_partition > 0)
+        {
+            hid_t id_partition_dataspace = H5Dget_space(id_partition);
+            hsize_t partition_nvals = H5Sget_simple_extent_npoints(id_partition_dataspace);
+            //Get the index to coordinates
+            int *partition = new int[partition_nvals];
+            if(partition)
+            {
+                herr_t status = H5Dread(id_partition, 
+                    H5T_NATIVE_INT, 
+                    H5S_ALL, 
+                    id_partition_dataspace, 
+                    H5P_DEFAULT,
+                    partition);
+            }
+            else
+            {
+                cerr << "Ran out of memory getting partition. \n";
+                return 0;
+            }
+            H5Sclose(id_partition_dataspace);
+            H5Dclose(id_partition);
+
+            // cout << "ncells = " << ncells << endl;
+            rv = vtkIntArray::New();
+            rv->SetNumberOfTuples(ncells);
+            int cell_number;
+            for (int tag = 0 ; tag < partition_nvals ; tag++)
+                {
+                    cell_number = tags2cellnumbers[tag];
+                    // cout << "cell_number = " << cell_number << ",  tag = " << tag << ", partition = "<< partition[tag] << endl;
+                    if(cell_number >= 0)
+                    {
+                        rv->SetTuple1(cell_number, partition[tag]); 
+                    }
+                }
+            delete [] partition;
+            partition = 0;
+        }
+        else
+        {
+            EXCEPTION1(InvalidVariableException, varname);
+            cerr << "avtvisitESSIFileFormat::GetVar() - Element Partition not set\n";
+            return 0;
+        }
+    }
+    else if(strcmp(varname, "Element Type") == 0)
+    {
+                        // cout << "Getting Node tag\n";
+
+
+        hid_t id_element_type           = H5Dopen2(id_file, "/Model/Elements/Class_Tags", H5P_DEFAULT);
+        if(id_element_type > 0)
+        {
+            hid_t id_element_type_dataspace = H5Dget_space(id_element_type);
+            hsize_t element_type_nvals = H5Sget_simple_extent_npoints(id_element_type_dataspace);
+            //Get the index to coordinates
+            int *element_type = new int[element_type_nvals];
+            if(element_type)
+            {
+                herr_t status = H5Dread(id_element_type, 
+                    H5T_NATIVE_INT, 
+                    H5S_ALL, 
+                    id_element_type_dataspace, 
+                    H5P_DEFAULT,
+                    element_type);
+            }
+            else
+            {
+                cerr << "Ran out of memory getting element_type. \n";
+                return 0;
+            }
+            H5Sclose(id_element_type_dataspace);
+            H5Dclose(id_element_type);
+
+            // cout << "ncells = " << ncells << endl;
+            rv = vtkIntArray::New();
+            rv->SetNumberOfTuples(ncells);
+            int cell_number;
+            for (int tag = 0 ; tag < element_type_nvals ; tag++)
+                {
+                    cell_number = tags2cellnumbers[tag];
+                    // cout << "cell_number = " << cell_number << ",  tag = " << tag << ", element_type = "<< element_type[tag] << endl;
+                    if(cell_number >= 0)
+                    {
+                        rv->SetTuple1(cell_number, element_type[tag]); 
+                    }
+                }
+            delete [] element_type;
+            element_type = 0;
+        }
+        else
+        {
+            EXCEPTION1(InvalidVariableException, varname);
+            cerr << "avtvisitESSIFileFormat::GetVar() - Element Partition not set\n";
+            return 0;
+        }
+    }
+    
+    return rv;
     //
 }
 
@@ -788,11 +956,11 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
 vtkDataArray *
 avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varname)
 {
-    cout << "visitESSI: Trying to get " << varname << " at t = " << timestate << "  \n\n";
+    debug4 << "visitESSI: Trying to get " << varname << " at t = " << timestate << "  \n\n";
 
     if (strcmp(varname, "Generalized Displacements") == 0)
     {
-        cout << "visitESSI: Getting generalized displacements. \n\n";
+        debug4 << "visitESSI: Getting generalized displacements. \n\n";
         int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
         int ntuples = nnodes; // this is the number of entries in the variable.
         int ucomps = 3;
@@ -845,14 +1013,13 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
         H5Sclose(id_nodes_displacements_dataspace);
         H5Sclose(memspace);
 
-        cout << "Writing\n";
+        debug4 << "Writing\n";
 
         //Write the data to VTK
         float *one_entry = new float[ucomps];
         float *d = displacements;
         for (int i = 0 ; i < ntuples ; i++)
         {
-            cout << "i = " << i << ", ndofs = " << number_of_dofs[pointnumbers2tags[i]] << endl;
             one_entry[0] = *(d++);
             one_entry[1] = *(d++);
             one_entry[2] = *(d++);
@@ -970,6 +1137,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
     else
     {
         debug4 << "visitESSI : Variable '" << varname <<  "' not available. \n\n";
+        cerr << "visitESSI : Variable '" << varname <<  "' not available. \n\n";
     }
     return 0;
 }

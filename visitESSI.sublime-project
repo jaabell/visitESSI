@@ -1,7 +1,7 @@
 {
 	"folders":
 	[
-			{
+		{
 			"file_exclude_patterns":
 			[
 				"*~",
@@ -16,6 +16,9 @@
 			],
 			"name": "Visit ESSI Plugin",
 			"path": "/home/jaabell/Programs/visit2.8.1/visit2.8.1/src/databases/visitESSI"
+		},
+		{
+			"path": "/home/jaabell/Programs/visit2.8.1/visit2.8.1/src/avt"
 		}
 	],
 	"settings":
