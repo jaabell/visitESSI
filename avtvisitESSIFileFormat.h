@@ -95,6 +95,10 @@ class avtvisitESSIFileFormat : public avtMTMDFileFormat
         //
 
         virtual int            GetNTimesteps(void);
+        //     virtual void          GetTimes(std::vector<double>&) { return; };
+        // virtual double        GetTime(void) { return INVALID_TIME; };
+        virtual double        GetTime(int);
+
         virtual void        GetTime(std::vector<double> &times);
 
         virtual const char    *GetType(void)

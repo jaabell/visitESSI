@@ -4,6 +4,10 @@
 		"selected_items":
 		[
 			[
+				"one",
+				"one_entry"
+			],
+			[
 				"cell",
 				"cell_number"
 			],
@@ -510,28 +514,16 @@
 			[
 				"nama",
 				"namae	std::string"
-			],
-			[
-				"Elas",
-				"ElasticStateStress	DTensor2"
 			]
 		]
 	},
 	"buffers":
 	[
 		{
-			"file": "/home/jaabell/Repositories/big_models/Model-II-with-Structure/Model-II-with-Structure.fei",
-			"settings":
-			{
-				"buffer_size": 5938,
-				"line_ending": "Unix"
-			}
-		},
-		{
 			"file": "avtvisitESSIFileFormat.h",
 			"settings":
 			{
-				"buffer_size": 5533,
+				"buffer_size": 5732,
 				"line_ending": "Unix"
 			}
 		},
@@ -539,7 +531,31 @@
 			"file": "avtvisitESSIFileFormat.C",
 			"settings":
 			{
-				"buffer_size": 48867,
+				"buffer_size": 49464,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "/home/jaabell/essi_tests/surface_waves/log",
+			"settings":
+			{
+				"buffer_size": 0,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "/home/jaabell/essi_tests/surface_waves/A.mdserver.4.vlog",
+			"settings":
+			{
+				"buffer_size": 0,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "/home/jaabell/essi_tests/surface_waves/A.mdserver.5.vlog",
+			"settings":
+			{
+				"buffer_size": 0,
 				"line_ending": "Unix"
 			}
 		}
@@ -1048,6 +1064,8 @@
 	},
 	"file_history":
 	[
+		"/home/jaabell/Repositories/big_models/Model-II-with-Structure/Model-II-with-Structure.fei",
+		"/home/jaabell/Programs/visit2.8.1/visit2.8.1/src/databases/visitESSI/visitESSIEnginePluginInfo.C",
 		"/home/jaabell/Repositories/send_to_nagoy.sh",
 		"/home/jaabell/Repositories/big_models/Model-II-with-Structure/elements_shells_and_beams.fei",
 		"/home/jaabell/Repositories/big_models/Model-II-with-Structure/elements_27nodebricks.fei",
@@ -1173,9 +1191,7 @@
 		"/home/jaabell/Repositories/essi_feb_21_2014/ModifiedOpenSeesServices/domain/node/Node.h",
 		"/home/jaabell/Repositories/essi_feb_21_2014/ModifiedOpenSeesServices/domain/node/Node.cpp",
 		"/home/jaabell/Repositories/essi_feb_21_2014/ModifiedOpenSeesServices/domain/domain/Domain.h",
-		"/home/jaabell/Repositories/essi_verification_examples/Seismic_Wave_Propagation_Problems/Continuous_Beam/test02_force.h5.feioutput",
-		"//home/jaabell/Repositories/essi_feb_21_2014/CompGeoMechUCD_Miscellaneous/output/H5OutputWriter.h",
-		"/home/jaabell/Repositories/essi_feb_21_2014/CompGeoMechUCD_Miscellaneous/output/OutputWriter.cpp"
+		"/home/jaabell/Repositories/essi_verification_examples/Seismic_Wave_Propagation_Problems/Continuous_Beam/test02_force.h5.feioutput"
 	],
 	"find":
 	{
@@ -1194,6 +1210,15 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"number_of_dofs",
+			"Displacements",
+			"displacements",
+			"Displacements",
+			"debug4",
+			"tryin",
+			"gettime",
+			"time",
+			"GetNTimesteps",
 			"initialize",
 			"point_number",
 			"partition",
@@ -1312,15 +1337,6 @@
 			"commit(",
 			"gauss_points",
 			"\n",
-			"stress",
-			"(\"",
-			"\"",
-			"popula",
-			"computeGaussPoint",
-			"gauss",
-			"EightNodeBrickElastic",
-			"ii++",
-			"++)",
 			"stress"
 		],
 		"highlight": true,
@@ -1370,140 +1386,23 @@
 	"groups":
 	[
 		{
-			"selected": 2,
+			"selected": 1,
 			"sheets":
 			[
 				{
 					"buffer": 0,
-					"file": "/home/jaabell/Repositories/big_models/Model-II-with-Structure/Model-II-with-Structure.fei",
-					"settings":
-					{
-						"buffer_size": 5938,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								3140,
-								3140
-							]
-						],
-						"settings":
-						{
-							"annotations":
-							[
-								"TODO",
-								"README",
-								"FIXME"
-							],
-							"csslint_options":
-							{
-								"adjoining-classes": "warning",
-								"box-model": true,
-								"box-sizing": "warning",
-								"compatible-vendor-prefixes": "warning",
-								"display-property-grouping": true,
-								"duplicate-background-images": "warning",
-								"duplicate-properties": true,
-								"empty-rules": true,
-								"errors": true,
-								"fallback-colors": "warning",
-								"floats": "warning",
-								"font-faces": "warning",
-								"font-sizes": "warning",
-								"gradients": "warning",
-								"ids": "warning",
-								"import": "warning",
-								"important": "warning",
-								"known-properties": true,
-								"outline-none": "warning",
-								"overqualified-elements": "warning",
-								"qualified-headings": "warning",
-								"regex-selectors": "warning",
-								"rules-count": "warning",
-								"shorthand": "warning",
-								"star-property-hack": "warning",
-								"text-indent": "warning",
-								"underscore-property-hack": "warning",
-								"unique-headings": "warning",
-								"universal-selector": "warning",
-								"vendor-prefix": true,
-								"zero-units": "warning"
-							},
-							"gjslint_ignore":
-							[
-								110
-							],
-							"gjslint_options":
-							[
-							],
-							"javascript_linter": "jshint",
-							"jshint_options":
-							{
-								"browser": true,
-								"evil": true,
-								"regexdash": true,
-								"sub": true,
-								"trailing": true,
-								"wsh": true
-							},
-							"pep8": true,
-							"pep8_ignore":
-							[
-								"E501"
-							],
-							"perl_linter": "perlcritic",
-							"pyflakes_ignore":
-							[
-							],
-							"pyflakes_ignore_import_*": true,
-							"sublimelinter": true,
-							"sublimelinter_delay": 2,
-							"sublimelinter_disable":
-							[
-							],
-							"sublimelinter_executable_map":
-							{
-							},
-							"sublimelinter_fill_outlines": false,
-							"sublimelinter_gutter_marks": true,
-							"sublimelinter_gutter_marks_theme": "simple",
-							"sublimelinter_mark_style": "none",
-							"sublimelinter_notes": false,
-							"sublimelinter_objj_check_ascii": false,
-							"sublimelinter_popup_errors_on_save": false,
-							"sublimelinter_syntax_map":
-							{
-								"C++": "c",
-								"Python Django": "python",
-								"Ruby on Rails": "ruby"
-							},
-							"sublimelinter_wrap_find": true,
-							"syntax": "Packages/FEI Syntax-n-Snippets/fei.tmLanguage",
-							"tab_size": 2,
-							"translate_tabs_to_spaces": true
-						},
-						"translation.x": 0.0,
-						"translation.y": 246.0,
-						"zoom_level": 1.0
-					},
-					"type": "text"
-				},
-				{
-					"buffer": 1,
 					"file": "avtvisitESSIFileFormat.h",
 					"settings":
 					{
-						"buffer_size": 5533,
+						"buffer_size": 5732,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								5046,
-								5046
+								4840,
+								4840
 							]
 						],
 						"settings":
@@ -1601,18 +1500,18 @@
 							"tab_size": 4,
 							"translate_tabs_to_spaces": true
 						},
-						"translation.x": 0.0,
-						"translation.y": 1632.0,
+						"translation.x": 47.0,
+						"translation.y": 1785.0,
 						"zoom_level": 1.0
 					},
 					"type": "text"
 				},
 				{
-					"buffer": 2,
+					"buffer": 1,
 					"file": "avtvisitESSIFileFormat.C",
 					"settings":
 					{
-						"buffer_size": 48867,
+						"buffer_size": 49464,
 						"regions":
 						{
 							"bookmarks":
@@ -1622,12 +1521,12 @@
 								"regions":
 								[
 									[
-										33047,
-										33047
+										33180,
+										33180
 									],
 									[
-										34439,
-										34439
+										34572,
+										34572
 									]
 								],
 								"scope": "bookmarks"
@@ -1636,8 +1535,8 @@
 						"selection":
 						[
 							[
-								35563,
-								35563
+								40046,
+								40046
 							]
 						],
 						"settings":
@@ -1736,7 +1635,354 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 14964.0,
+						"translation.y": 17204.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 2,
+					"file": "/home/jaabell/essi_tests/surface_waves/log",
+					"settings":
+					{
+						"buffer_size": 0,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								0,
+								0
+							]
+						],
+						"settings":
+						{
+							"annotations":
+							[
+								"TODO",
+								"README",
+								"FIXME"
+							],
+							"csslint_options":
+							{
+								"adjoining-classes": "warning",
+								"box-model": true,
+								"box-sizing": "warning",
+								"compatible-vendor-prefixes": "warning",
+								"display-property-grouping": true,
+								"duplicate-background-images": "warning",
+								"duplicate-properties": true,
+								"empty-rules": true,
+								"errors": true,
+								"fallback-colors": "warning",
+								"floats": "warning",
+								"font-faces": "warning",
+								"font-sizes": "warning",
+								"gradients": "warning",
+								"ids": "warning",
+								"import": "warning",
+								"important": "warning",
+								"known-properties": true,
+								"outline-none": "warning",
+								"overqualified-elements": "warning",
+								"qualified-headings": "warning",
+								"regex-selectors": "warning",
+								"rules-count": "warning",
+								"shorthand": "warning",
+								"star-property-hack": "warning",
+								"text-indent": "warning",
+								"underscore-property-hack": "warning",
+								"unique-headings": "warning",
+								"universal-selector": "warning",
+								"vendor-prefix": true,
+								"zero-units": "warning"
+							},
+							"gjslint_ignore":
+							[
+								110
+							],
+							"gjslint_options":
+							[
+							],
+							"javascript_linter": "jshint",
+							"jshint_options":
+							{
+								"browser": true,
+								"evil": true,
+								"regexdash": true,
+								"sub": true,
+								"trailing": true,
+								"wsh": true
+							},
+							"pep8": true,
+							"pep8_ignore":
+							[
+								"E501"
+							],
+							"perl_linter": "perlcritic",
+							"pyflakes_ignore":
+							[
+							],
+							"pyflakes_ignore_import_*": true,
+							"sublimelinter": true,
+							"sublimelinter_delay": 2,
+							"sublimelinter_disable":
+							[
+							],
+							"sublimelinter_executable_map":
+							{
+							},
+							"sublimelinter_fill_outlines": false,
+							"sublimelinter_gutter_marks": true,
+							"sublimelinter_gutter_marks_theme": "simple",
+							"sublimelinter_mark_style": "none",
+							"sublimelinter_notes": false,
+							"sublimelinter_objj_check_ascii": false,
+							"sublimelinter_popup_errors_on_save": false,
+							"sublimelinter_syntax_map":
+							{
+								"C++": "c",
+								"Python Django": "python",
+								"Ruby on Rails": "ruby"
+							},
+							"sublimelinter_wrap_find": true,
+							"syntax": "Packages/Text/Plain text.tmLanguage"
+						},
+						"translation.x": 0.0,
+						"translation.y": 32375.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 3,
+					"file": "/home/jaabell/essi_tests/surface_waves/A.mdserver.4.vlog",
+					"settings":
+					{
+						"buffer_size": 0,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								0,
+								0
+							]
+						],
+						"settings":
+						{
+							"annotations":
+							[
+								"TODO",
+								"README",
+								"FIXME"
+							],
+							"csslint_options":
+							{
+								"adjoining-classes": "warning",
+								"box-model": true,
+								"box-sizing": "warning",
+								"compatible-vendor-prefixes": "warning",
+								"display-property-grouping": true,
+								"duplicate-background-images": "warning",
+								"duplicate-properties": true,
+								"empty-rules": true,
+								"errors": true,
+								"fallback-colors": "warning",
+								"floats": "warning",
+								"font-faces": "warning",
+								"font-sizes": "warning",
+								"gradients": "warning",
+								"ids": "warning",
+								"import": "warning",
+								"important": "warning",
+								"known-properties": true,
+								"outline-none": "warning",
+								"overqualified-elements": "warning",
+								"qualified-headings": "warning",
+								"regex-selectors": "warning",
+								"rules-count": "warning",
+								"shorthand": "warning",
+								"star-property-hack": "warning",
+								"text-indent": "warning",
+								"underscore-property-hack": "warning",
+								"unique-headings": "warning",
+								"universal-selector": "warning",
+								"vendor-prefix": true,
+								"zero-units": "warning"
+							},
+							"gjslint_ignore":
+							[
+								110
+							],
+							"gjslint_options":
+							[
+							],
+							"javascript_linter": "jshint",
+							"jshint_options":
+							{
+								"browser": true,
+								"evil": true,
+								"regexdash": true,
+								"sub": true,
+								"trailing": true,
+								"wsh": true
+							},
+							"pep8": true,
+							"pep8_ignore":
+							[
+								"E501"
+							],
+							"perl_linter": "perlcritic",
+							"pyflakes_ignore":
+							[
+							],
+							"pyflakes_ignore_import_*": true,
+							"sublimelinter": true,
+							"sublimelinter_delay": 2,
+							"sublimelinter_disable":
+							[
+							],
+							"sublimelinter_executable_map":
+							{
+							},
+							"sublimelinter_fill_outlines": false,
+							"sublimelinter_gutter_marks": true,
+							"sublimelinter_gutter_marks_theme": "simple",
+							"sublimelinter_mark_style": "none",
+							"sublimelinter_notes": false,
+							"sublimelinter_objj_check_ascii": false,
+							"sublimelinter_popup_errors_on_save": false,
+							"sublimelinter_syntax_map":
+							{
+								"C++": "c",
+								"Python Django": "python",
+								"Ruby on Rails": "ruby"
+							},
+							"sublimelinter_wrap_find": true,
+							"syntax": "Packages/Text/Plain text.tmLanguage",
+							"translate_tabs_to_spaces": false
+						},
+						"translation.x": 0.0,
+						"translation.y": 2713.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 4,
+					"file": "/home/jaabell/essi_tests/surface_waves/A.mdserver.5.vlog",
+					"settings":
+					{
+						"buffer_size": 0,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								0,
+								0
+							]
+						],
+						"settings":
+						{
+							"annotations":
+							[
+								"TODO",
+								"README",
+								"FIXME"
+							],
+							"csslint_options":
+							{
+								"adjoining-classes": "warning",
+								"box-model": true,
+								"box-sizing": "warning",
+								"compatible-vendor-prefixes": "warning",
+								"display-property-grouping": true,
+								"duplicate-background-images": "warning",
+								"duplicate-properties": true,
+								"empty-rules": true,
+								"errors": true,
+								"fallback-colors": "warning",
+								"floats": "warning",
+								"font-faces": "warning",
+								"font-sizes": "warning",
+								"gradients": "warning",
+								"ids": "warning",
+								"import": "warning",
+								"important": "warning",
+								"known-properties": true,
+								"outline-none": "warning",
+								"overqualified-elements": "warning",
+								"qualified-headings": "warning",
+								"regex-selectors": "warning",
+								"rules-count": "warning",
+								"shorthand": "warning",
+								"star-property-hack": "warning",
+								"text-indent": "warning",
+								"underscore-property-hack": "warning",
+								"unique-headings": "warning",
+								"universal-selector": "warning",
+								"vendor-prefix": true,
+								"zero-units": "warning"
+							},
+							"gjslint_ignore":
+							[
+								110
+							],
+							"gjslint_options":
+							[
+							],
+							"javascript_linter": "jshint",
+							"jshint_options":
+							{
+								"browser": true,
+								"evil": true,
+								"regexdash": true,
+								"sub": true,
+								"trailing": true,
+								"wsh": true
+							},
+							"pep8": true,
+							"pep8_ignore":
+							[
+								"E501"
+							],
+							"perl_linter": "perlcritic",
+							"pyflakes_ignore":
+							[
+							],
+							"pyflakes_ignore_import_*": true,
+							"sublimelinter": true,
+							"sublimelinter_delay": 2,
+							"sublimelinter_disable":
+							[
+							],
+							"sublimelinter_executable_map":
+							{
+							},
+							"sublimelinter_fill_outlines": false,
+							"sublimelinter_gutter_marks": true,
+							"sublimelinter_gutter_marks_theme": "simple",
+							"sublimelinter_mark_style": "none",
+							"sublimelinter_notes": false,
+							"sublimelinter_objj_check_ascii": false,
+							"sublimelinter_popup_errors_on_save": false,
+							"sublimelinter_syntax_map":
+							{
+								"C++": "c",
+								"Python Django": "python",
+								"Ruby on Rails": "ruby"
+							},
+							"sublimelinter_wrap_find": true,
+							"syntax": "Packages/Text/Plain text.tmLanguage",
+							"translate_tabs_to_spaces": false
+						},
+						"translation.x": 0.0,
+						"translation.y": 212005.0,
 						"zoom_level": 1.0
 					},
 					"type": "text"
@@ -2327,7 +2573,7 @@
 		[
 			[
 				"",
-				"/home/jaabell/Programs/visit2.8.1/visit2.8.1/src/databases/visitESSI/visitESSI.sublime-project"
+				"/home/jaabell/Repositories/essi_current.sublime-project"
 			]
 		],
 		"width": 380.0
@@ -2336,6 +2582,6 @@
 	"show_open_files": true,
 	"show_tabs": true,
 	"side_bar_visible": true,
-	"side_bar_width": 197.0,
+	"side_bar_width": 143.0,
 	"status_bar_visible": true
 }

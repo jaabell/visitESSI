@@ -117,42 +117,43 @@ avtvisitESSIFileFormat::avtvisitESSIFileFormat(const char *filename)
 void
 avtvisitESSIFileFormat::FreeUpResources(void)
 {
+    // cout << "FREEEEE\n";
     // H5close();
-    if(gauss_to_element_tag)
-    {
-        delete [] gauss_to_element_tag;
-        gauss_to_element_tag = 0;
-    }
-    if(number_of_gauss_points)
-    {
-        delete [] number_of_gauss_points;
-        number_of_gauss_points = 0;
-    }
-    if(number_of_dofs)
-    {
-        delete [] number_of_dofs;
-        number_of_dofs = 0;
-    }
-    if(tags2pointnumbers)
-    {
-        delete [] tags2pointnumbers;
-        tags2pointnumbers = 0;
-    }
-    if(pointnumbers2tags)
-    {
-        delete [] pointnumbers2tags;
-        pointnumbers2tags = 0;
-    }
-    if(tags2cellnumbers)
-    {
-        delete [] tags2cellnumbers;
-        tags2cellnumbers = 0;
-    }
-    if(cellnumbers2tags)
-    {
-        delete [] cellnumbers2tags;
-        cellnumbers2tags = 0;
-    }
+    // if(gauss_to_element_tag)
+    // {
+    //     delete [] gauss_to_element_tag;
+    //     gauss_to_element_tag = 0;
+    // }
+    // if(number_of_gauss_points)
+    // {
+    //     delete [] number_of_gauss_points;
+    //     number_of_gauss_points = 0;
+    // }
+    // if(number_of_dofs)
+    // {
+    //     delete [] number_of_dofs;
+    //     number_of_dofs = 0;
+    // }
+    // if(tags2pointnumbers)
+    // {
+    //     delete [] tags2pointnumbers;
+    //     tags2pointnumbers = 0;
+    // }
+    // if(pointnumbers2tags)
+    // {
+    //     delete [] pointnumbers2tags;
+    //     pointnumbers2tags = 0;
+    // }
+    // if(tags2cellnumbers)
+    // {
+    //     delete [] tags2cellnumbers;
+    //     tags2cellnumbers = 0;
+    // }
+    // if(cellnumbers2tags)
+    // {
+    //     delete [] cellnumbers2tags;
+    //     cellnumbers2tags = 0;
+    // }
 }
 
 
@@ -956,11 +957,11 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
 vtkDataArray *
 avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varname)
 {
-    debug4 << "visitESSI: Trying to get " << varname << " at t = " << timestate << "  \n\n";
+    // cout << "visitESSI: Trying to get " << varname << " at t = " << timestate << "  \n\n";
 
     if (strcmp(varname, "Generalized Displacements") == 0)
     {
-        debug4 << "visitESSI: Getting generalized displacements. \n\n";
+        // cout << "visitESSI: Getting generalized displacements. \n\n";
         int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
         int ntuples = nnodes; // this is the number of entries in the variable.
         int ucomps = 3;
@@ -996,6 +997,8 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
         hsize_t datadims[1] = {dims[0]};
         hid_t memspace  = H5Screate_simple(1, datadims, datadims);
 
+        // cout << "dims[0] = " << dims[0] << endl;
+
         //Try to get all the displacements now
         float *displacements = new float[dims[0]];
 
@@ -1013,7 +1016,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
         H5Sclose(id_nodes_displacements_dataspace);
         H5Sclose(memspace);
 
-        debug4 << "Writing\n";
+        // cout << "Writing\n";
 
         //Write the data to VTK
         float *one_entry = new float[ucomps];
@@ -1024,9 +1027,12 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
             one_entry[1] = *(d++);
             one_entry[2] = *(d++);
 
-            d += number_of_dofs[pointnumbers2tags[i]] - 3;
+            // cout << "d[" << i << "] = (" << one_entry[0] << ", " << one_entry[1] << ", " << one_entry[2] << ")";
 
+            d += number_of_dofs[pointnumbers2tags[i]] - 3;
+            // cout << ".";
             rv->SetTuple(i, one_entry);
+            // cout << ".\n";
         }
 
         delete [] one_entry;
@@ -1224,7 +1230,21 @@ avtvisitESSIFileFormat::GetTime(std::vector<double> &times)
         PopulateTimeAndNSteps();
     }
     times = t;
+    cout << "times = ";
+    for(int i = 0; i< times.size(); i++)
+        cout << times[i] << endl;
 }
+
+double
+avtvisitESSIFileFormat::GetTime(int i)
+{
+    if (nsteps < 0)
+    {
+        PopulateTimeAndNSteps();
+    }
+    return t[i];
+}
+
 
 
 // ****************************************************************************
@@ -1243,7 +1263,7 @@ avtvisitESSIFileFormat::GetTime(std::vector<double> &times)
 int
 avtvisitESSIFileFormat::GetNTimesteps(void)
 {
-    if (nsteps < 0)
+    if (nsteps <= 0)
     {
         PopulateTimeAndNSteps();
     }
