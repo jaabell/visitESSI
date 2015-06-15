@@ -23,7 +23,7 @@ Checkout the latest version of `visitESSI`
 Do:
 
     cd visitESSI
-    xml2cmake -clobber visitESSI.xmk
+    xml2cmake -clobber visitESSI.xml
     cmake .
     make 
     
