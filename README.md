@@ -5,6 +5,8 @@ visitESSI
 
 Look at this [video](https://www.youtube.com/watch?v=mrT5L4xsKs0).
 
+<iframe width="560" height="315" src="https://www.youtube.com/embed/mrT5L4xsKs0" frameborder="0" allowfullscreen></iframe>
+
 ###Installation
 
 There are two methods to get this plugin working depending on the way you have installed Visit.
