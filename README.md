@@ -1,6 +1,10 @@
 visitESSI
 =========
 
+###Usage
+
+Look at this [video](https://www.youtube.com/watch?v=mrT5L4xsKs0).
+
 ###Installation
 
 There are two methods to get this plugin working depending on the way you have installed Visit.
