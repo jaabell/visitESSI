@@ -33,9 +33,9 @@ If the last step goes well, you should be able to run VisitESSI plugin. Confirm 
 
 A VisIt plugin that reads ESSI (HDF5) output. For what follows `$(VISIT_DIR)` is the directory where the visit tarball and install script are installed.
 
-Compiles with VisIt 2.8.1 on Ubuntu 14.04, with `gcc-4.9`. Do a regular install of VisIt. I use the flags:
+Compiles with VisIt 2.9.2 on Ubuntu 14.04, with `gcc-4.9`. Do a regular install of VisIt. I use the flags:
 
-	./build_visit2_8_1 --required --hdf5 --makeflags "-j 16"
+	./build_visit2_9_2 --required --hdf5 --szip --makeflags "-j 16"
 
 Once visit compiles without errors (and you can execute the visit executable), then go into
 
