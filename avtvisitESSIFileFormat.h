@@ -113,12 +113,19 @@ public:
 
     //To provide initialization... later
     void ActivateTimestep();
-    void initialize();
 
     void PopulateTimeAndNSteps();
 
+    void *
+    GetAuxiliaryData(const char *var,
+                     int domain, const char *type, void *,
+                     DestructorFunction &df);
+
 protected:
     // DATA MEMBERS
+    void initialize();
+    void
+    openSubdomainNumber(int domain);
 
     virtual void           PopulateDatabaseMetaData(avtDatabaseMetaData *, int);
 private:

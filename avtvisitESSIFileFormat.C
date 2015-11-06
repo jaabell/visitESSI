@@ -52,6 +52,7 @@
 #include <vtkUnstructuredGrid.h>
 
 #include <avtDatabaseMetaData.h>
+#include <avtIntervalTree.h>
 
 #include <DBOptionsAttributes.h>
 #include <Expression.h>
@@ -342,51 +343,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
     // =============================================================================================
     // =============================================================================================
     // =============================================================================================
-
-    if ((id_file > 0) && (number_of_processes > 1) )
-    {
-        //Need to open another HDF5 file
-        H5Fclose(id_file);
-        std::string subdomain_filename = filename_string;
-
-        // Determine the number of digits in the total number of processes
-        int number = number_of_processes;
-        int digits = 0;
-        if (number < 0) digits = 1; // remove this line if '-' counts as a digit
-        while (number)
-        {
-            number /= 10;
-            digits++;
-        }
-
-        std::stringstream ss;
-        ss << ".";
-        ss << setfill('0') << setw(digits) << domain + 1;
-
-        size_t f = subdomain_filename.find(".feioutput");
-        subdomain_filename.replace(f, std::string(".feioutput").length(), ss.str());
-        subdomain_filename += ".feioutput";
-
-        GO_HERE << " Opening : " << subdomain_filename << endl;
-        id_file = H5Fopen( subdomain_filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
-
-        //Read number of elements
-        hid_t id_num_elements = H5Dopen2(id_file, "/Number_of_Elements", H5P_DEFAULT);
-        hid_t id_num_elements_dataspace = H5Dget_space(id_num_elements);
-        H5Dread(id_num_elements, H5T_NATIVE_INT, H5S_ALL   , id_num_elements_dataspace, H5P_DEFAULT,
-                &ncells);
-        H5Dclose(id_num_elements);
-        H5Sclose(id_num_elements_dataspace);
-
-        //Read number of nodes
-        hid_t id_num_nodes = H5Dopen2(id_file, "/Number_of_Nodes", H5P_DEFAULT);
-        hid_t id_num_nodes_dataspace = H5Dget_space(id_num_nodes);
-        H5Dread(id_num_nodes, H5T_NATIVE_INT, H5S_ALL   , id_num_nodes_dataspace, H5P_DEFAULT,
-                &nnodes);
-        H5Dclose(id_num_nodes);
-        H5Sclose(id_num_nodes_dataspace);
-    }
-
+    openSubdomainNumber(domain);
 
     if (strcmp(meshname, mainmesh.c_str()) == 0 )
     {
@@ -829,6 +786,7 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
 
     //
     // If you do have a scalar variable, here is some code that may be helpful.
+    openSubdomainNumber(domain);
 
     int ntuples; // this is the number of entries in the variable.
     vtkIntArray *rv;
@@ -1009,49 +967,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
     GO_HERE << "visitESSI: Trying to get " << varname << " at t = " << timestate << " on domain " << domain << " \n\n";
 
 
-    if ((id_file > 0) && (number_of_processes > 1) )
-    {
-        //Need to open another HDF5 file
-        H5Fclose(id_file);
-        std::string subdomain_filename = filename_string;
-
-        // Determine the number of digits in the total number of processes
-        int number = number_of_processes;
-        int digits = 0;
-        if (number < 0) digits = 1; // remove this line if '-' counts as a digit
-        while (number)
-        {
-            number /= 10;
-            digits++;
-        }
-
-        std::stringstream ss;
-        ss << ".";
-        ss << setfill('0') << setw(digits) << domain + 1;
-
-        size_t f = subdomain_filename.find(".feioutput");
-        subdomain_filename.replace(f, std::string(".feioutput").length(), ss.str());
-        subdomain_filename += ".feioutput";
-
-        GO_HERE << " Opening : " << subdomain_filename << endl;
-        id_file = H5Fopen( subdomain_filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
-
-        //Read number of elements
-        hid_t id_num_elements = H5Dopen2(id_file, "/Number_of_Elements", H5P_DEFAULT);
-        hid_t id_num_elements_dataspace = H5Dget_space(id_num_elements);
-        H5Dread(id_num_elements, H5T_NATIVE_INT, H5S_ALL   , id_num_elements_dataspace, H5P_DEFAULT,
-                &ncells);
-        H5Dclose(id_num_elements);
-        H5Sclose(id_num_elements_dataspace);
-
-        //Read number of nodes
-        hid_t id_num_nodes = H5Dopen2(id_file, "/Number_of_Nodes", H5P_DEFAULT);
-        hid_t id_num_nodes_dataspace = H5Dget_space(id_num_nodes);
-        H5Dread(id_num_nodes, H5T_NATIVE_INT, H5S_ALL   , id_num_nodes_dataspace, H5P_DEFAULT,
-                &nnodes);
-        H5Dclose(id_num_nodes);
-        H5Sclose(id_num_nodes_dataspace);
-    }
+    openSubdomainNumber(domain);
 
 
     if (strcmp(varname, "Generalized Displacements") == 0)
@@ -1442,5 +1358,120 @@ void avtvisitESSIFileFormat::PopulateTimeAndNSteps()
             t.push_back(vals[i]);
         }
         delete [] vals;
+    }
+}
+
+
+void *
+avtvisitESSIFileFormat::GetAuxiliaryData(const char *var,
+        int domain, const char *type, void *,
+        DestructorFunction &df)
+{
+    GO_HERE << "Auxiliary data requested: " << type << ", domain = " << domain << ", var = " << var << endl;
+    void *retval = 0;
+    if (strcmp(type, AUXILIARY_DATA_SPATIAL_EXTENTS) == 0)
+    {
+        GO_HERE << "Extents requested!\n";
+
+        // Read the number of domains for the mesh.
+        int ndoms = number_of_processes - 1;
+
+        // Read the spatial extents for each domain of the
+        // mesh. This information should be in a single
+        // and should be available without having to
+        // read the real data. The expected format for
+        // the data in the spatialextents array is to
+        // repeat the following pattern for each domain:
+        // xmin, xmax, ymin, ymax, zmin, zmax.
+        double *spatialextents = new double[ndoms * 6];
+
+        //READ ndoms * 6 DOUBLE VALUES INTO spatialextents ARRAY.
+        for (int d = 1; d <= ndoms; d++)
+        {
+            openSubdomainNumber(domain);
+            hid_t id_model_bounds = H5Dopen2(id_file, "/Model/Model_Bounds", H5P_DEFAULT);
+            hid_t id_model_bounds_dataspace = H5Dget_space(id_model_bounds);
+            hsize_t id_model_bounds_nvals  = H5Sget_simple_extent_npoints(id_model_bounds_dataspace);
+
+
+            // GO_HERE << "visitESSI : feioutput file contains " << id_model_bounds_nvals << " timesteps.\n\n";
+
+            if (6 != id_model_bounds_nvals)
+            {
+                GO_HERE << "Something wrong 6 != id_model_bounds_nvals  ( 6 != " << id_model_bounds_nvals << ") \n\n";
+            }
+            // nsteps = id_time_nvals;
+
+            // double *vals = new double[nsteps] ;
+            H5Dread(id_model_bounds, H5T_NATIVE_DOUBLE, H5S_ALL   , id_model_bounds_dataspace, H5P_DEFAULT,
+                    spatialextents + (d - 1) * 6);
+        }
+
+        // Create an interval tree
+        avtIntervalTree *itree = new avtIntervalTree(ndoms, 3);
+        double *extents = spatialextents;
+        for (int dom = 0; dom < ndoms; ++dom)
+        {
+            itree->AddElement(dom, extents);
+            extents += 6;
+        }
+        itree->Calculate(true);
+
+        // Delete temporary array.
+        delete [] spatialextents;
+
+        // Set return values
+        retval = (void *)itree;
+        df = avtIntervalTree::Destruct;
+    }
+    return retval;
+}
+
+
+void
+avtvisitESSIFileFormat::openSubdomainNumber(int domain)
+{
+    if ((id_file > 0) && (number_of_processes > 1) )
+    {
+        //Need to open another HDF5 file
+        H5Fclose(id_file);
+        std::string subdomain_filename = filename_string;
+
+        // Determine the number of digits in the total number of processes
+        int number = number_of_processes;
+        int digits = 0;
+        if (number < 0) digits = 1; // remove this line if '-' counts as a digit
+        while (number)
+        {
+            number /= 10;
+            digits++;
+        }
+
+        std::stringstream ss;
+        ss << ".";
+        ss << setfill('0') << setw(digits) << domain + 1;
+
+        size_t f = subdomain_filename.find(".feioutput");
+        subdomain_filename.replace(f, std::string(".feioutput").length(), ss.str());
+        subdomain_filename += ".feioutput";
+
+        GO_HERE << " Opening : " << subdomain_filename << endl;
+        id_file = H5Fopen( subdomain_filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+
+        //Read number of elements
+        hid_t id_num_elements = H5Dopen2(id_file, "/Number_of_Elements", H5P_DEFAULT);
+        hid_t id_num_elements_dataspace = H5Dget_space(id_num_elements);
+        H5Dread(id_num_elements, H5T_NATIVE_INT, H5S_ALL   , id_num_elements_dataspace, H5P_DEFAULT,
+                &ncells);
+        H5Dclose(id_num_elements);
+        H5Sclose(id_num_elements_dataspace);
+
+        //Read number of nodes
+        hid_t id_num_nodes = H5Dopen2(id_file, "/Number_of_Nodes", H5P_DEFAULT);
+        hid_t id_num_nodes_dataspace = H5Dget_space(id_num_nodes);
+        H5Dread(id_num_nodes, H5T_NATIVE_INT, H5S_ALL   , id_num_nodes_dataspace, H5P_DEFAULT,
+                &nnodes);
+        H5Dclose(id_num_nodes);
+        H5Sclose(id_num_nodes_dataspace);
     }
 }
