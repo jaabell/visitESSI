@@ -69,87 +69,89 @@
 
 class avtvisitESSIFileFormat : public avtMTMDFileFormat
 {
-    public:
-        avtvisitESSIFileFormat(const char *);
-        virtual           ~avtvisitESSIFileFormat()
-        {
-            FreeUpResources();
-            // Maybe need to destroy VTK objects????
-        };
+public:
+    avtvisitESSIFileFormat(const char *);
+    virtual           ~avtvisitESSIFileFormat()
+    {
+        FreeUpResources();
+        // Maybe need to destroy VTK objects????
+    };
 
-        //
-        // This is used to return unconvention data -- ranging from material
-        // information to information about block connectivity.
-        //
-        // virtual void      *GetAuxiliaryData(const char *var, int timestep,
-        //                                     int domain, const char *type, void *args,
-        //                                     DestructorFunction &);
-        //
+    //
+    // This is used to return unconvention data -- ranging from material
+    // information to information about block connectivity.
+    //
+    // virtual void      *GetAuxiliaryData(const char *var, int timestep,
+    //                                     int domain, const char *type, void *args,
+    //                                     DestructorFunction &);
+    //
 
-        //
-        // If you know the times and cycle numbers, overload this function.
-        // Otherwise, VisIt will make up some reasonable ones for you.
-        //
-        // virtual void        GetCycles(std::vector<int> &);
-        // virtual void        GetTimes(std::vector<double> &);
-        //
+    //
+    // If you know the times and cycle numbers, overload this function.
+    // Otherwise, VisIt will make up some reasonable ones for you.
+    //
+    // virtual void        GetCycles(std::vector<int> &);
+    // virtual void        GetTimes(std::vector<double> &);
+    //
 
-        virtual int            GetNTimesteps(void);
-        //     virtual void          GetTimes(std::vector<double>&) { return; };
-        // virtual double        GetTime(void) { return INVALID_TIME; };
-        virtual double        GetTime(int);
+    virtual int            GetNTimesteps(void);
+    //     virtual void          GetTimes(std::vector<double>&) { return; };
+    // virtual double        GetTime(void) { return INVALID_TIME; };
+    virtual double        GetTime(int);
 
-        virtual void        GetTime(std::vector<double> &times);
+    virtual void        GetTime(std::vector<double> &times);
 
-        virtual const char    *GetType(void)
-        {
-            return "visitESSI";
-        };
-        virtual void           FreeUpResources(void);
+    virtual const char    *GetType(void)
+    {
+        return "visitESSI";
+    };
+    virtual void           FreeUpResources(void);
 
-        virtual vtkDataSet    *GetMesh(int, int, const char *);
-        virtual vtkDataArray  *GetVar(int, int, const char *);
-        virtual vtkDataArray  *GetVectorVar(int, int, const char *);
+    virtual vtkDataSet    *GetMesh(int, int, const char *);
+    virtual vtkDataArray  *GetVar(int, int, const char *);
+    virtual vtkDataArray  *GetVectorVar(int, int, const char *);
 
-        //To provide initialization... later
-        void ActivateTimestep();
-        void initialize();
+    //To provide initialization... later
+    void ActivateTimestep();
+    void initialize();
 
-        void PopulateTimeAndNSteps();
+    void PopulateTimeAndNSteps();
 
-    protected:
-        // DATA MEMBERS
+protected:
+    // DATA MEMBERS
 
-        virtual void           PopulateDatabaseMetaData(avtDatabaseMetaData *, int);
-    private:
-        std::string filename_string;
-        bool initialized;
-        hid_t id_file;
-        int nnodes;
-        int ngauss;
-        int ncells;
-        int nsteps;
+    virtual void           PopulateDatabaseMetaData(avtDatabaseMetaData *, int);
+private:
+    std::string filename_string;
+    bool initialized;
+    hid_t id_file;
+    int nnodes;
+    int ngauss;
+    int ncells;
+    int nsteps;
+    int number_of_processes;
+    int process_number;
 
-        int max_ele_tag;
-        int max_node_tag;
-        
-        std::vector<double> t;
+    int max_ele_tag;
+    int max_node_tag;
 
-        std::string mainmesh, gaussmesh;
+    std::vector<double> t;
 
-        bool returned_mainmesh_already;
-        bool returned_gaussmesh_already;
+    std::string mainmesh, gaussmesh;
 
-        int *gauss_to_element_tag;
-        int *number_of_gauss_points;
-        int *number_of_dofs;
-        int *tags2pointnumbers;
-        int *pointnumbers2tags;
-        int *tags2cellnumbers;
-        int *cellnumbers2tags;
+    bool returned_mainmesh_already;
+    bool returned_gaussmesh_already;
 
-        vtkUnstructuredGrid *mainmesh_data;
-        vtkUnstructuredGrid *gaussmesh_data;
+    int **m_gauss_to_element_tag;
+    int **m_number_of_gauss_points;
+    int **m_number_of_dofs;
+    int **m_tags2pointnumbers;
+    int **m_pointnumbers2tags;
+    int **m_tags2cellnumbers;
+    int **m_cellnumbers2tags;
+
+    vtkUnstructuredGrid **m_mainmesh_data;
+    vtkUnstructuredGrid **m_gaussmesh_data;
 
 };
 

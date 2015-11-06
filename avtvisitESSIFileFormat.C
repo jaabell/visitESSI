@@ -70,6 +70,7 @@ using     std::string;
 // My includes
 #include <hdf5.h>
 
+#define GO_HERE std::cout
 
 // ****************************************************************************
 //  Method: avtvisitESSIFileFormat constructor
@@ -91,8 +92,8 @@ avtvisitESSIFileFormat::avtvisitESSIFileFormat(const char *filename)
     returned_gaussmesh_already = false;
     returned_mainmesh_already = false;
 
-    mainmesh_data = NULL;
-    gaussmesh_data = NULL;
+    m_mainmesh_data = NULL;
+    m_gaussmesh_data = NULL;
 
     initialized = false;
 }
@@ -117,42 +118,42 @@ avtvisitESSIFileFormat::avtvisitESSIFileFormat(const char *filename)
 void
 avtvisitESSIFileFormat::FreeUpResources(void)
 {
-    // cout << "FREEEEE\n";
+    // GO_HERE << "FREEEEE\n";
     // H5close();
-    // if(gauss_to_element_tag)
+    // if(m_gauss_to_element_tag[domain])
     // {
-    //     delete [] gauss_to_element_tag;
-    //     gauss_to_element_tag = 0;
+    //     delete [] m_gauss_to_element_tag[domain];
+    //     m_gauss_to_element_tag[domain] = 0;
     // }
-    // if(number_of_gauss_points)
+    // if(m_number_of_gauss_points[domain])
     // {
-    //     delete [] number_of_gauss_points;
-    //     number_of_gauss_points = 0;
+    //     delete [] m_number_of_gauss_points[domain];
+    //     m_number_of_gauss_points[domain] = 0;
     // }
-    // if(number_of_dofs)
+    // if(m_number_of_dofs[domain])
     // {
-    //     delete [] number_of_dofs;
-    //     number_of_dofs = 0;
+    //     delete [] m_number_of_dofs[domain];
+    //     m_number_of_dofs[domain] = 0;
     // }
-    // if(tags2pointnumbers)
+    // if(m_tags2pointnumbers[domain])
     // {
-    //     delete [] tags2pointnumbers;
-    //     tags2pointnumbers = 0;
+    //     delete [] m_tags2pointnumbers[domain];
+    //     m_tags2pointnumbers[domain] = 0;
     // }
-    // if(pointnumbers2tags)
+    // if(m_pointnumbers2tags[domain])
     // {
-    //     delete [] pointnumbers2tags;
-    //     pointnumbers2tags = 0;
+    //     delete [] m_pointnumbers2tags[domain];
+    //     m_pointnumbers2tags[domain] = 0;
     // }
-    // if(tags2cellnumbers)
+    // if(m_tags2cellnumbers[domain])
     // {
-    //     delete [] tags2cellnumbers;
-    //     tags2cellnumbers = 0;
+    //     delete [] m_tags2cellnumbers[domain];
+    //     m_tags2cellnumbers[domain] = 0;
     // }
-    // if(cellnumbers2tags)
+    // if(m_cellnumbers2tags[domain])
     // {
-    //     delete [] cellnumbers2tags;
-    //     cellnumbers2tags = 0;
+    //     delete [] m_cellnumbers2tags[domain];
+    //     m_cellnumbers2tags[domain] = 0;
     // }
 }
 
@@ -200,7 +201,7 @@ avtvisitESSIFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md, int ti
     mmd->spatialDimension = 3;
     mmd->topologicalDimension = 3;
     mmd->meshType = AVT_UNSTRUCTURED_MESH;
-    mmd->numBlocks = 1;
+    mmd->numBlocks = number_of_processes > 1 ? number_of_processes - 1 : 1;
 
     md->Add(mmd);
 
@@ -324,7 +325,8 @@ vtkDataSet *
 avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
 {
     initialize();
-    debug4 << "visitESSI: Getting Mesh: -> " <<  meshname <<  "\n\n" ;
+    GO_HERE << "visitESSI: Getting Mesh: -> " <<  meshname <<  ", domain = " << domain << "\n\n" ;
+    // GO_HERE << "visitESSI: Getting Mesh: -> " <<  meshname <<  " domain = " << domain << "\n\n" ;
 
     // string mname = meshname;
 
@@ -341,13 +343,59 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
     // =============================================================================================
     // =============================================================================================
 
+    if ((id_file > 0) && (number_of_processes > 1) )
+    {
+        //Need to open another HDF5 file
+        H5Fclose(id_file);
+        std::string subdomain_filename = filename_string;
+
+        // Determine the number of digits in the total number of processes
+        int number = number_of_processes;
+        int digits = 0;
+        if (number < 0) digits = 1; // remove this line if '-' counts as a digit
+        while (number)
+        {
+            number /= 10;
+            digits++;
+        }
+
+        std::stringstream ss;
+        ss << ".";
+        ss << setfill('0') << setw(digits) << domain + 1;
+
+        size_t f = subdomain_filename.find(".feioutput");
+        subdomain_filename.replace(f, std::string(".feioutput").length(), ss.str());
+        subdomain_filename += ".feioutput";
+
+        GO_HERE << " Opening : " << subdomain_filename << endl;
+        id_file = H5Fopen( subdomain_filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+
+        //Read number of elements
+        hid_t id_num_elements = H5Dopen2(id_file, "/Number_of_Elements", H5P_DEFAULT);
+        hid_t id_num_elements_dataspace = H5Dget_space(id_num_elements);
+        H5Dread(id_num_elements, H5T_NATIVE_INT, H5S_ALL   , id_num_elements_dataspace, H5P_DEFAULT,
+                &ncells);
+        H5Dclose(id_num_elements);
+        H5Sclose(id_num_elements_dataspace);
+
+        //Read number of nodes
+        hid_t id_num_nodes = H5Dopen2(id_file, "/Number_of_Nodes", H5P_DEFAULT);
+        hid_t id_num_nodes_dataspace = H5Dget_space(id_num_nodes);
+        H5Dread(id_num_nodes, H5T_NATIVE_INT, H5S_ALL   , id_num_nodes_dataspace, H5P_DEFAULT,
+                &nnodes);
+        H5Dclose(id_num_nodes);
+        H5Sclose(id_num_nodes_dataspace);
+    }
 
 
     if (strcmp(meshname, mainmesh.c_str()) == 0 )
     {
         // If this is the first time reading the mesh data -> load it into memory!!
-        if (mainmesh_data == NULL)
+        if (m_mainmesh_data[domain] == NULL)
         {
+
+
+
             int ndims  = 3;
             int origin = 0;
             // ncells = 0;
@@ -364,7 +412,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             //////////////////////////////////////////////////////////////////////////////////////////
 
 
-            debug4 << "visitESSI: Reading Node Info\n\n";
+            GO_HERE << "visitESSI: Reading Node Info\n\n";
 
 
             //Get the number of defined nodes
@@ -387,21 +435,21 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
 
 
             //Form an array that transforms node "tags" to connectivity indexes
-            tags2pointnumbers = new int[nodes_number_of_tags_max];
-            pointnumbers2tags = new int[nodes_number_of_tags_max];
+            m_tags2pointnumbers[domain] = new int[nodes_number_of_tags_max];
+            m_pointnumbers2tags[domain] = new int[nodes_number_of_tags_max];
             int point_number = 0;
             for (int tag = 0; tag < nodes_number_of_tags_max; tag++)
             {
                 if (index_to_coordinates[tag] >= 0) // This condition checks that the node tag exists (else it has -1 in index to coord)
                 {
-                    point_number = index_to_coordinates[tag]/3;
-                    tags2pointnumbers[tag] = point_number;
-                    pointnumbers2tags[point_number] = tag;
+                    point_number = index_to_coordinates[tag] / 3;
+                    m_tags2pointnumbers[domain][tag] = point_number;
+                    m_pointnumbers2tags[domain][point_number] = tag;
                     // point_number++;
                 }
                 else // tag does not exist so no corresponding point number is generated
                 {
-                    tags2pointnumbers[tag] = -1;
+                    m_tags2pointnumbers[domain][tag] = -1;
                 }
             }
 
@@ -412,9 +460,9 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             hid_t id_nodes_number_of_dofs_dataspace = H5Dget_space(id_nodes_number_of_dofs);
 
             //Get the index to coordinates
-            number_of_dofs = new int[nodes_number_of_tags_max];
+            m_number_of_dofs[domain] = new int[nodes_number_of_tags_max];
             status = H5Dread(id_nodes_number_of_dofs, H5T_NATIVE_INT, H5S_ALL   , id_nodes_number_of_dofs_dataspace, H5P_DEFAULT,
-                             number_of_dofs);
+                             m_number_of_dofs[domain]);
 
 
 
@@ -434,14 +482,14 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             //Read values of coordinates from HDF5 directly into the VTK pts pointer
             const hsize_t dims[1]          = {nnodes * 3};
             hid_t memspace                 = H5Screate_simple(1, dims, dims);
-            status = H5Dread(id_nodes_coordinates, 
-                             H5T_NATIVE_FLOAT, 
-                             memspace, 
-                             id_coordinates_dataspace, 
+            status = H5Dread(id_nodes_coordinates,
+                             H5T_NATIVE_FLOAT,
+                             memspace,
+                             id_coordinates_dataspace,
                              H5P_DEFAULT,
                              pts);
 
-            debug4 << "visitESSI: Done reading nodes. Read " << nnodes << " nodes values.\n\n";
+            GO_HERE << "visitESSI: Done reading nodes. Read " << nnodes << " nodes values.\n\n";
 
             //Free up memory.
             delete [] index_to_coordinates;
@@ -454,7 +502,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             //////////////////////////////////////////////////////////////////////////////////////////
             //    ELEMENTS
             //////////////////////////////////////////////////////////////////////////////////////////
-            debug4 << "visitESSI: Reading Element Info\n\n";
+            GO_HERE << "visitESSI: Reading Element Info\n\n";
 
 
             //Get the number of elements (ncells)
@@ -470,20 +518,20 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
 
             max_node_tag = id_elements_nnodes_nvals;
 
-            tags2cellnumbers = new int[id_elements_nnodes_nvals];
-            cellnumbers2tags = new int[id_elements_nnodes_nvals];
+            m_tags2cellnumbers[domain] = new int[id_elements_nnodes_nvals];
+            m_cellnumbers2tags[domain] = new int[id_elements_nnodes_nvals];
             int cellnumber = 0;
             for (int tag = 0; tag < id_elements_nnodes_nvals; tag++)
             {
                 if (elements_nnodes[tag] >= 0) // This condition checks that the element tag exists (else it has -1 in number of nodes)
                 {
-                    tags2cellnumbers[tag] = cellnumber;
-                    cellnumbers2tags[cellnumber] = tag;
+                    m_tags2cellnumbers[domain][tag] = cellnumber;
+                    m_cellnumbers2tags[domain][cellnumber] = tag;
                     cellnumber++;
                 }
                 else // tag does not exist so no corresponding cell number is generated
                 {
-                    tags2cellnumbers[tag] = -1;
+                    m_tags2cellnumbers[domain][tag] = -1;
                 }
             }
 
@@ -492,9 +540,9 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             H5Sclose(id_elements_nnodes_dataspace);
 
 
-            debug4 << "visitESSI: Mesh has " << ncells <<  " elements. \n\n";
+            GO_HERE << "visitESSI: Mesh has " << ncells <<  " elements. \n\n";
 
-            debug4 << "visitESSI: Reading connectivity \n\n";
+            GO_HERE << "visitESSI: Reading connectivity \n\n";
 
             //Get the  connectivity
             hid_t id_elements_connectivity           = H5Dopen2(id_file, "/Model/Elements/Connectivity", H5P_DEFAULT);
@@ -509,19 +557,19 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
 
             returned_mainmesh_already = true;
 
-            debug4 << "visitESSI: Done! \n\n";
+            GO_HERE << "visitESSI: Done! \n\n";
 
 
-            debug4 << "visitESSI : Generating VTK nodes\n";
+            GO_HERE << "visitESSI : Generating VTK nodes\n";
 
 
             //
             // Create a vtkUnstructuredGrid to contain the point cells.
             //
-            mainmesh_data = vtkUnstructuredGrid::New();
-            mainmesh_data  -> SetPoints(points);
+            m_mainmesh_data[domain] = vtkUnstructuredGrid::New();
+            m_mainmesh_data[domain]  -> SetPoints(points);
             points -> Delete();
-            mainmesh_data  -> Allocate(ncells);
+            m_mainmesh_data[domain]  -> Allocate(ncells);
 
             vtkIdType verts[27];
 
@@ -536,7 +584,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             int essi_to_vtk_8nodebrick[8]   = {4, 5, 6, 7, 0, 1, 2, 3};
             //                                  0   1   2   3   4   5   6   7   8   9   10   11   12   13   14   15   16   17   18   19   20   21   22   23   24   25   26
             int essi_to_vtk_27nodebrick[27] = { 6,  5,  4,  7,  2,  1,  0,  3,  13, 12, 15,  14,   9,   8,  11,  10,  18,  17,  16,  19,  23,  21,  22,  24,  26,  25,  20 };
-            
+
 
             //Loop over elements and add them
             int count = 0;
@@ -597,7 +645,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
                         for (int j = 0; j < nverts; j++)
                         {
                             essi_node_number = connectivity[count + access_order[j]];
-                            visit_vertex_number = tags2pointnumbers[essi_node_number];
+                            visit_vertex_number = m_tags2pointnumbers[domain][essi_node_number];
 
                             if (visit_vertex_number >= 0)
                             {
@@ -606,21 +654,21 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
                             else
                             {
                                 //Something went wrong
-                                debug4 << "!!!! visitESSI - something went wrong\n\n";
+                                GO_HERE << "!!!! visitESSI - something went wrong\n\n";
                                 // EXCEPTION0(InvalidVariableException, meshname);
                             }
                         }
-                        mainmesh_data->InsertNextCell(cellType, nverts, verts);
+                        m_mainmesh_data[domain]->InsertNextCell(cellType, nverts, verts);
                     }
                     count += nverts;
                 }
             }
-            // debug4 << "visitESSI: Added " << number_of_added_elements << " elements of " << ncells << " total available.\n\n";
-            debug4 << "visitESSI: Added " << number_of_added_elements << " elements of " << ncells << " total available.\n\n";
+            // GO_HERE << "visitESSI: Added " << number_of_added_elements << " elements of " << ncells << " total available.\n\n";
+            GO_HERE << "visitESSI: Added " << number_of_added_elements << " elements of " << ncells << " total available.\n\n";
         }
 
-        mainmesh_data->Register(NULL);
-        return mainmesh_data;
+        m_mainmesh_data[domain]->Register(NULL);
+        return m_mainmesh_data[domain];
     }   //Ends Brick Elements Mesh
 
 
@@ -641,14 +689,14 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
 
     else if (strcmp(meshname, gaussmesh.c_str()) == 0)
     {
-        if (gaussmesh_data == NULL)
+        if (m_gaussmesh_data[domain] == NULL)
         {
             int ndims  = 3;
             int origin = 0;
             herr_t status;
 
 
-            debug4 << "visitESSI: Reading GP Info\n\n";
+            GO_HERE << "visitESSI: Reading GP Info\n\n";
 
             //Get the number of defined gausspoints
             hid_t id_gausspoints_coordinates                    = H5Dopen2(id_file, "/Model/Elements/Gauss_Point_Coordinates", H5P_DEFAULT);
@@ -668,19 +716,19 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
                              index_to_coordinates);
 
             //Get number of Gauss points per element
-            hid_t id_number_of_gausspoints           = H5Dopen2(id_file, "/Model/Elements/Number_of_Gauss_Points", H5P_DEFAULT);
+            hid_t id_number_of_gausspoints           = H5Dopen2(id_file, "/Model/Elements/m_number_of_gauss_points[domain]", H5P_DEFAULT);
             hid_t id_number_of_gausspoints_dataspace = H5Dget_space(id_number_of_gausspoints);
 
 
             //Get the number of GPs
-            number_of_gauss_points = new int[gausspoints_number_of_tags_max];
+            m_number_of_gauss_points[domain] = new int[gausspoints_number_of_tags_max];
             status = H5Dread(id_number_of_gausspoints, H5T_NATIVE_INT, H5S_ALL   , id_number_of_gausspoints_dataspace, H5P_DEFAULT,
-                             number_of_gauss_points);
+                             m_number_of_gauss_points[domain]);
 
 
 
             //Build an index that relates number of a gauss point to the element it belongs to
-            gauss_to_element_tag = new int[ngauss];
+            m_gauss_to_element_tag[domain] = new int[ngauss];
             int gaussnumber = 0;
 
             for (int tag = 0; tag < gausspoints_number_of_tags_max; tag++)
@@ -688,10 +736,10 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
                 if (index_to_coordinates[tag] >= 0)
                 {
                     int number_of_gauss_points_for_this_element;
-                    number_of_gauss_points_for_this_element = number_of_gauss_points[tag];
+                    number_of_gauss_points_for_this_element = m_number_of_gauss_points[domain][tag];
                     for (int g = 0; g < number_of_gauss_points_for_this_element; g++)
                     {
-                        gauss_to_element_tag[gaussnumber] = tag;
+                        m_gauss_to_element_tag[domain][gaussnumber] = tag;
                         gaussnumber++;
                     }
                 }
@@ -710,12 +758,12 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             status = H5Dread(id_gausspoints_coordinates, H5T_NATIVE_FLOAT, memspace, id_coordinates_dataspace, H5P_DEFAULT,
                              pts);
 
-            debug4 << "visitESSI: Done reading Gauss Points. Read " << ngauss << " GP coordinate values.\n\n";
+            GO_HERE << "visitESSI: Done reading Gauss Points. Read " << ngauss << " GP coordinate values.\n\n";
 
 
             //Free up memory.
             delete [] index_to_coordinates;
-            // delete [] number_of_gauss_points;
+            // delete [] m_number_of_gauss_points[domain];
             H5Dclose(id_gausspoints_coordinates);
             H5Sclose(id_coordinates_dataspace);
             H5Dclose(id_gausspoints_index_to_coordinates);
@@ -726,21 +774,22 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             //
             // Create a vtkUnstructuredGrid to contain the point cells.
             //
-            gaussmesh_data = vtkUnstructuredGrid::New();
-            gaussmesh_data->SetPoints(points);
+            m_gaussmesh_data[domain] = vtkUnstructuredGrid::New();
+            m_gaussmesh_data[domain]->SetPoints(points);
             points->Delete();
-            gaussmesh_data->Allocate(ngauss);
+            m_gaussmesh_data[domain]->Allocate(ngauss);
             vtkIdType onevertex;
             for (int i = 0; i < ngauss; ++i)
             {
                 onevertex = i;
-                gaussmesh_data->InsertNextCell(VTK_VERTEX, 1, &onevertex);
+                m_gaussmesh_data[domain]->InsertNextCell(VTK_VERTEX, 1, &onevertex);
             }
         }
-        gaussmesh_data->Register(NULL);
-        return gaussmesh_data;
+        m_gaussmesh_data[domain]->Register(NULL);
+        return m_gaussmesh_data[domain];
     }
 
+    return 0;
 }
 
 
@@ -780,69 +829,69 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
 
     //
     // If you do have a scalar variable, here is some code that may be helpful.
-    
+
     int ntuples; // this is the number of entries in the variable.
     vtkIntArray *rv;
-    cout << "GetVar(" << timestate << ", " << domain << ", " << varname << ")\n";
-    if(strcmp(varname, "Node Tag") == 0)
+    GO_HERE << "GetVar(" << timestate << ", " << domain << ", " << varname << ")\n";
+    if (strcmp(varname, "Node Tag") == 0)
     {
-        // cout << "Getting Node tag\n";
+        // GO_HERE << "Getting Node tag\n";
         rv = vtkIntArray::New();
         ntuples = nnodes;
         rv->SetNumberOfTuples(ntuples);
-        if(pointnumbers2tags)
+        if (m_pointnumbers2tags[domain])
         {
             for (int i = 0 ; i < ntuples ; i++)
-                {
-                    // cout << "point = " << i << ",  tag = " << pointnumbers2tags[i] << ", nnodes = " << nnodes << endl;
-                    rv->SetTuple1(i, pointnumbers2tags[i]);  // you must determine value for ith entry.
-                }
+            {
+                // GO_HERE << "point = " << i << ",  tag = " << m_pointnumbers2tags[domain][i] << ", nnodes = " << nnodes << endl;
+                rv->SetTuple1(i, m_pointnumbers2tags[domain][i]);  // you must determine value for ith entry.
+            }
         }
         else
         {
-            cerr << "avtvisitESSIFileFormat::GetVar() - pointnumbers2tags not set\n";
+            cerr << "avtvisitESSIFileFormat::GetVar() - m_pointnumbers2tags[domain] not set\n";
         }
     }
-    else if(strcmp(varname, "Element Tag") == 0)
+    else if (strcmp(varname, "Element Tag") == 0)
     {
-                // cout << "Getting Node tag\n";
+        // GO_HERE << "Getting Node tag\n";
         rv = vtkIntArray::New();
         ntuples = ncells;
         rv->SetNumberOfTuples(ntuples);
-        if(pointnumbers2tags)
+        if (m_pointnumbers2tags[domain])
         {
             for (int i = 0 ; i < ntuples ; i++)
-                {
-                    // cout << "point = " << i << ",  tag = " << pointnumbers2tags[i] << ", nnodes = " << nnodes << endl;
-                    rv->SetTuple1(i, cellnumbers2tags[i]);  // you must determine value for ith entry.
-                }
+            {
+                // GO_HERE << "point = " << i << ",  tag = " << m_pointnumbers2tags[domain][i] << ", nnodes = " << nnodes << endl;
+                rv->SetTuple1(i, m_cellnumbers2tags[domain][i]);  // you must determine value for ith entry.
+            }
         }
         else
         {
             EXCEPTION1(InvalidVariableException, varname);
-            cerr << "avtvisitESSIFileFormat::GetVar() - pointnumbers2tags not set\n";
+            cerr << "avtvisitESSIFileFormat::GetVar() - m_pointnumbers2tags[domain] not set\n";
         }
     }
-    else if(strcmp(varname, "Element Partition") == 0)
+    else if (strcmp(varname, "Element Partition") == 0)
     {
-                        // cout << "Getting Node tag\n";
+        // GO_HERE << "Getting Node tag\n";
 
 
         hid_t id_partition           = H5Dopen2(id_file, "/Model/Elements/Partition", H5P_DEFAULT);
-        if(id_partition > 0)
+        if (id_partition > 0)
         {
             hid_t id_partition_dataspace = H5Dget_space(id_partition);
             hsize_t partition_nvals = H5Sget_simple_extent_npoints(id_partition_dataspace);
             //Get the index to coordinates
             int *partition = new int[partition_nvals];
-            if(partition)
+            if (partition)
             {
-                herr_t status = H5Dread(id_partition, 
-                    H5T_NATIVE_INT, 
-                    H5S_ALL, 
-                    id_partition_dataspace, 
-                    H5P_DEFAULT,
-                    partition);
+                herr_t status = H5Dread(id_partition,
+                                        H5T_NATIVE_INT,
+                                        H5S_ALL,
+                                        id_partition_dataspace,
+                                        H5P_DEFAULT,
+                                        partition);
             }
             else
             {
@@ -852,19 +901,19 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
             H5Sclose(id_partition_dataspace);
             H5Dclose(id_partition);
 
-            // cout << "ncells = " << ncells << endl;
+            // GO_HERE << "ncells = " << ncells << endl;
             rv = vtkIntArray::New();
             rv->SetNumberOfTuples(ncells);
             int cell_number;
             for (int tag = 0 ; tag < partition_nvals ; tag++)
+            {
+                cell_number = m_tags2cellnumbers[domain][tag];
+                // GO_HERE << "cell_number = " << cell_number << ",  tag = " << tag << ", partition = "<< partition[tag] << endl;
+                if (cell_number >= 0)
                 {
-                    cell_number = tags2cellnumbers[tag];
-                    // cout << "cell_number = " << cell_number << ",  tag = " << tag << ", partition = "<< partition[tag] << endl;
-                    if(cell_number >= 0)
-                    {
-                        rv->SetTuple1(cell_number, partition[tag]); 
-                    }
+                    rv->SetTuple1(cell_number, partition[tag]);
                 }
+            }
             delete [] partition;
             partition = 0;
         }
@@ -875,26 +924,26 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
             return 0;
         }
     }
-    else if(strcmp(varname, "Element Type") == 0)
+    else if (strcmp(varname, "Element Type") == 0)
     {
-                        // cout << "Getting Node tag\n";
+        // GO_HERE << "Getting Node tag\n";
 
 
         hid_t id_element_type           = H5Dopen2(id_file, "/Model/Elements/Class_Tags", H5P_DEFAULT);
-        if(id_element_type > 0)
+        if (id_element_type > 0)
         {
             hid_t id_element_type_dataspace = H5Dget_space(id_element_type);
             hsize_t element_type_nvals = H5Sget_simple_extent_npoints(id_element_type_dataspace);
             //Get the index to coordinates
             int *element_type = new int[element_type_nvals];
-            if(element_type)
+            if (element_type)
             {
-                herr_t status = H5Dread(id_element_type, 
-                    H5T_NATIVE_INT, 
-                    H5S_ALL, 
-                    id_element_type_dataspace, 
-                    H5P_DEFAULT,
-                    element_type);
+                herr_t status = H5Dread(id_element_type,
+                                        H5T_NATIVE_INT,
+                                        H5S_ALL,
+                                        id_element_type_dataspace,
+                                        H5P_DEFAULT,
+                                        element_type);
             }
             else
             {
@@ -904,19 +953,19 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
             H5Sclose(id_element_type_dataspace);
             H5Dclose(id_element_type);
 
-            // cout << "ncells = " << ncells << endl;
+            // GO_HERE << "ncells = " << ncells << endl;
             rv = vtkIntArray::New();
             rv->SetNumberOfTuples(ncells);
             int cell_number;
             for (int tag = 0 ; tag < element_type_nvals ; tag++)
+            {
+                cell_number = m_tags2cellnumbers[domain][tag];
+                // GO_HERE << "cell_number = " << cell_number << ",  tag = " << tag << ", element_type = "<< element_type[tag] << endl;
+                if (cell_number >= 0)
                 {
-                    cell_number = tags2cellnumbers[tag];
-                    // cout << "cell_number = " << cell_number << ",  tag = " << tag << ", element_type = "<< element_type[tag] << endl;
-                    if(cell_number >= 0)
-                    {
-                        rv->SetTuple1(cell_number, element_type[tag]); 
-                    }
+                    rv->SetTuple1(cell_number, element_type[tag]);
                 }
+            }
             delete [] element_type;
             element_type = 0;
         }
@@ -927,7 +976,7 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
             return 0;
         }
     }
-    
+
     return rv;
     //
 }
@@ -957,11 +1006,57 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
 vtkDataArray *
 avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varname)
 {
-    // cout << "visitESSI: Trying to get " << varname << " at t = " << timestate << "  \n\n";
+    GO_HERE << "visitESSI: Trying to get " << varname << " at t = " << timestate << " on domain " << domain << " \n\n";
+
+
+    if ((id_file > 0) && (number_of_processes > 1) )
+    {
+        //Need to open another HDF5 file
+        H5Fclose(id_file);
+        std::string subdomain_filename = filename_string;
+
+        // Determine the number of digits in the total number of processes
+        int number = number_of_processes;
+        int digits = 0;
+        if (number < 0) digits = 1; // remove this line if '-' counts as a digit
+        while (number)
+        {
+            number /= 10;
+            digits++;
+        }
+
+        std::stringstream ss;
+        ss << ".";
+        ss << setfill('0') << setw(digits) << domain + 1;
+
+        size_t f = subdomain_filename.find(".feioutput");
+        subdomain_filename.replace(f, std::string(".feioutput").length(), ss.str());
+        subdomain_filename += ".feioutput";
+
+        GO_HERE << " Opening : " << subdomain_filename << endl;
+        id_file = H5Fopen( subdomain_filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+
+        //Read number of elements
+        hid_t id_num_elements = H5Dopen2(id_file, "/Number_of_Elements", H5P_DEFAULT);
+        hid_t id_num_elements_dataspace = H5Dget_space(id_num_elements);
+        H5Dread(id_num_elements, H5T_NATIVE_INT, H5S_ALL   , id_num_elements_dataspace, H5P_DEFAULT,
+                &ncells);
+        H5Dclose(id_num_elements);
+        H5Sclose(id_num_elements_dataspace);
+
+        //Read number of nodes
+        hid_t id_num_nodes = H5Dopen2(id_file, "/Number_of_Nodes", H5P_DEFAULT);
+        hid_t id_num_nodes_dataspace = H5Dget_space(id_num_nodes);
+        H5Dread(id_num_nodes, H5T_NATIVE_INT, H5S_ALL   , id_num_nodes_dataspace, H5P_DEFAULT,
+                &nnodes);
+        H5Dclose(id_num_nodes);
+        H5Sclose(id_num_nodes_dataspace);
+    }
+
 
     if (strcmp(varname, "Generalized Displacements") == 0)
     {
-        // cout << "visitESSI: Getting generalized displacements. \n\n";
+        // GO_HERE << "visitESSI: Getting generalized displacements. \n\n";
         int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
         int ntuples = nnodes; // this is the number of entries in the variable.
         int ucomps = 3;
@@ -997,7 +1092,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
         hsize_t datadims[1] = {dims[0]};
         hid_t memspace  = H5Screate_simple(1, datadims, datadims);
 
-        // cout << "dims[0] = " << dims[0] << endl;
+        // GO_HERE << "dims[0] = " << dims[0] << endl;
 
         //Try to get all the displacements now
         float *displacements = new float[dims[0]];
@@ -1016,7 +1111,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
         H5Sclose(id_nodes_displacements_dataspace);
         H5Sclose(memspace);
 
-        // cout << "Writing\n";
+        // GO_HERE << "Writing\n";
 
         //Write the data to VTK
         float *one_entry = new float[ucomps];
@@ -1027,12 +1122,12 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
             one_entry[1] = *(d++);
             one_entry[2] = *(d++);
 
-            // cout << "d[" << i << "] = (" << one_entry[0] << ", " << one_entry[1] << ", " << one_entry[2] << ")";
+            // GO_HERE << "d[" << i << "] = (" << one_entry[0] << ", " << one_entry[1] << ", " << one_entry[2] << ")";
 
-            d += number_of_dofs[pointnumbers2tags[i]] - 3;
-            // cout << ".";
+            d += m_number_of_dofs[domain][m_pointnumbers2tags[domain][i]] - 3;
+            // GO_HERE << ".";
             rv->SetTuple(i, one_entry);
-            // cout << ".\n";
+            // GO_HERE << ".\n";
         }
 
         delete [] one_entry;
@@ -1056,7 +1151,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
 
     else if (strcmp(varname, "Stress") == 0)
     {
-        debug4 << "visitESSI: Getting stress. \n\n";
+        GO_HERE << "visitESSI: Getting stress. \n\n";
         int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
         int ntuples = ngauss; // this is the number of entries in the variable.
         int ucomps = 9;
@@ -1108,7 +1203,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
         H5Sclose(id_elements_outputs_dataspace);
         H5Sclose(memspace);
 
-        // debug4 << "ncells = " << ncells << endl;
+        // GO_HERE << "ncells = " << ncells << endl;
         float *one_entry = new float[ucomps];
         int gptag = 0;
         int order[9] = { 0 , 3,  4 , 3, 1, 5, 4, 5, 2 }; // This converts 6 component symmetric stress to 9 component general tensor... matrix is filled row-wise.
@@ -1117,8 +1212,8 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
         for (int tag = 0 ; tag < ncells ; tag++)
         {
             int pos = index_to_outputs[tag];
-            int number_of_gauss_points_for_this_element = number_of_gauss_points[tag];
-            for (int gp = 0; gp < number_of_gauss_points_for_this_element; gp++)
+            int number_of_gauss_point_for_this_element = m_number_of_gauss_points[domain][tag];
+            for (int gp = 0; gp < number_of_gauss_point_for_this_element; gp++)
             {
                 // float *s = outputs[ pos + 18 * gp + 12]; // 18 is the number of outputs per gauss-point first 6 are strains, next 6 are plastic strains and final 6 are stresses (hence the +12)
                 float *s = outputs + pos + 18 * gp + 12; // 18 is the number of outputs per gauss-point first 6 are strains, next 6 are plastic strains and final 6 are stresses (hence the +12)
@@ -1142,7 +1237,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
     }
     else
     {
-        debug4 << "visitESSI : Variable '" << varname <<  "' not available. \n\n";
+        GO_HERE << "visitESSI : Variable '" << varname <<  "' not available. \n\n";
         cerr << "visitESSI : Variable '" << varname <<  "' not available. \n\n";
     }
     return 0;
@@ -1169,9 +1264,9 @@ void avtvisitESSIFileFormat::initialize()
     {
         bool okay = false;
 
-        debug4 << "visitESSI : Opening : " << filename_string << "\n\n";
+        GO_HERE << "visitESSI : Opening : " << filename_string << "\n\n";
         id_file = H5Fopen( filename_string.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
-        debug4 << "Got id  to file : " << id_file << "\n\n";
+        GO_HERE << "Got id  to file : " << id_file << "\n\n";
 
         if (id_file >= 0)
         {
@@ -1180,7 +1275,7 @@ void avtvisitESSIFileFormat::initialize()
 
         if (!okay)
         {
-            debug4 << "visitESSI : Could not open file.\n\n";
+            GO_HERE << "visitESSI : Could not open file.\n\n";
             EXCEPTION1(InvalidDBTypeException,
                        "The file could not be opened");
         }
@@ -1209,9 +1304,53 @@ void avtvisitESSIFileFormat::initialize()
         H5Dclose(id_num_nodes);
         H5Sclose(id_num_nodes_dataspace);
 
-        debug4 << "Number of time-steps = " << nsteps << endl;
-        debug4 << "Number of nodes      = " << nnodes << endl;
-        debug4 << "Number of elements   = " << ncells << endl;
+        //Read number of processes used
+        // Number_of_Processes_Used
+        hid_t id_numprocs = H5Dopen2(id_file, "/Number_of_Processes_Used", H5P_DEFAULT);
+        hid_t id_numprocs_dataspace = H5Dget_space(id_numprocs);
+        H5Dread(id_numprocs, H5T_NATIVE_INT, H5S_ALL   , id_numprocs_dataspace, H5P_DEFAULT,
+                &number_of_processes);
+        H5Dclose(id_numprocs);
+        H5Sclose(id_numprocs_dataspace);
+
+        //Process_Number
+        hid_t id_procnum = H5Dopen2(id_file, "/Process_Number", H5P_DEFAULT);
+        hid_t id_procnum_dataspace = H5Dget_space(id_procnum);
+        H5Dread(id_procnum, H5T_NATIVE_INT, H5S_ALL   , id_procnum_dataspace, H5P_DEFAULT,
+                &process_number);
+        H5Dclose(id_procnum);
+        H5Sclose(id_procnum_dataspace);
+
+        m_gauss_to_element_tag = new int*[number_of_processes];
+        m_number_of_gauss_points = new int*[number_of_processes];
+        m_number_of_dofs = new int*[number_of_processes];
+        m_tags2pointnumbers = new int*[number_of_processes];
+        m_pointnumbers2tags = new int*[number_of_processes];
+        m_tags2cellnumbers = new int*[number_of_processes];
+        m_cellnumbers2tags = new int*[number_of_processes];
+        m_mainmesh_data = new vtkUnstructuredGrid*[number_of_processes];
+        m_gaussmesh_data = new vtkUnstructuredGrid*[number_of_processes];
+
+        for (int d = 0; d < number_of_processes ; d++)
+        {
+            GO_HERE << "Initializing arrays for domain : " << d << endl;
+            m_gauss_to_element_tag[d] = NULL;
+            m_number_of_gauss_points[d] = NULL;
+            m_number_of_dofs[d] = NULL;
+            m_tags2pointnumbers[d] = NULL;
+            m_pointnumbers2tags[d] = NULL;
+            m_tags2cellnumbers[d] = NULL;
+            m_cellnumbers2tags[d] = NULL;
+            m_mainmesh_data[d] = NULL;
+            m_gaussmesh_data[d] = NULL;
+        }
+
+
+        GO_HERE << "Number of time-steps = " << nsteps << endl;
+        GO_HERE << "Number of nodes      = " << nnodes << endl;
+        GO_HERE << "Number of elements   = " << ncells << endl;
+        GO_HERE << "Number of processes  = " << number_of_processes << endl;
+        GO_HERE << "This process         = " << process_number << endl;
 
         PopulateTimeAndNSteps();
 
@@ -1230,9 +1369,9 @@ avtvisitESSIFileFormat::GetTime(std::vector<double> &times)
         PopulateTimeAndNSteps();
     }
     times = t;
-    cout << "times = ";
-    for(int i = 0; i< times.size(); i++)
-        cout << times[i] << endl;
+    GO_HERE << "times = ";
+    for (int i = 0; i < times.size(); i++)
+        GO_HERE << times[i] << endl;
 }
 
 double
@@ -1278,18 +1417,18 @@ void avtvisitESSIFileFormat::PopulateTimeAndNSteps()
     {
 
         initialize();
-        debug4 << "visitESSI : Getting time\n\n";
+        GO_HERE << "visitESSI : Getting time\n\n";
         //Get the time dimension
         hid_t id_time = H5Dopen2(id_file, "/time", H5P_DEFAULT);
         hid_t id_time_dataspace = H5Dget_space(id_time);
         hsize_t id_time_nvals  = H5Sget_simple_extent_npoints(id_time_dataspace);
 
 
-        debug4 << "visitESSI : feioutput file contains " << id_time_nvals << " timesteps.\n\n";
+        GO_HERE << "visitESSI : feioutput file contains " << id_time_nvals << " timesteps.\n\n";
 
         if (nsteps != id_time_nvals)
         {
-            debug4 << "Something wrong nsteps != id_time_nvals  ( " << nsteps << " != " << id_time_nvals << ") \n\n";
+            GO_HERE << "Something wrong nsteps != id_time_nvals  ( " << nsteps << " != " << id_time_nvals << ") \n\n";
         }
         // nsteps = id_time_nvals;
 
