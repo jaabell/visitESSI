@@ -212,11 +212,11 @@ avtvisitESSIFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md, int ti
     mmd->spatialDimension = 3;
     mmd->topologicalDimension = 0;
     mmd->meshType = AVT_POINT_MESH;
-    mmd->numBlocks = 1;
+    mmd->numBlocks = number_of_processes > 1 ? number_of_processes - 1 : 1;
 
     md->Add(mmd);
 
-
+    ngauss = new int [number_of_processes];
     //
     // CODE TO ADD A SCALAR VARIABLE
     //
@@ -234,6 +234,10 @@ avtvisitESSIFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md, int ti
     AddScalarVarToMetaData(md, varname, mainmesh, cent);
 
     varname = "Element Type";
+    cent = AVT_ZONECENT;
+    AddScalarVarToMetaData(md, varname, mainmesh, cent);
+
+    varname = "8 Node Brick Update Time";
     cent = AVT_ZONECENT;
     AddScalarVarToMetaData(md, varname, mainmesh, cent);
 
@@ -659,7 +663,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             hid_t id_gausspoints_coordinates                    = H5Dopen2(id_file, "/Model/Elements/Gauss_Point_Coordinates", H5P_DEFAULT);
             hid_t id_coordinates_dataspace                = H5Dget_space(id_gausspoints_coordinates);
             hsize_t id_gausspoints_coordinates_nvals            = H5Sget_simple_extent_npoints(id_coordinates_dataspace);
-            ngauss                                        = static_cast<int> (id_gausspoints_coordinates_nvals) / 3;
+            // ngauss                                        = static_cast<int> (id_gausspoints_coordinates_nvals) / 3;
 
 
             //Get number of maximum possibly defined tags :/
@@ -673,7 +677,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
                              index_to_coordinates);
 
             //Get number of Gauss points per element
-            hid_t id_number_of_gausspoints           = H5Dopen2(id_file, "/Model/Elements/m_number_of_gauss_points[domain]", H5P_DEFAULT);
+            hid_t id_number_of_gausspoints           = H5Dopen2(id_file, "/Model/Elements/Number_of_Gauss_Points", H5P_DEFAULT);
             hid_t id_number_of_gausspoints_dataspace = H5Dget_space(id_number_of_gausspoints);
 
 
@@ -683,39 +687,53 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
                              m_number_of_gauss_points[domain]);
 
 
-
-            //Build an index that relates number of a gauss point to the element it belongs to
-            m_gauss_to_element_tag[domain] = new int[ngauss];
-            int gaussnumber = 0;
-
+            ngauss[domain] = 0;
             for (int tag = 0; tag < gausspoints_number_of_tags_max; tag++)
             {
                 if (index_to_coordinates[tag] >= 0)
                 {
-                    int number_of_gauss_points_for_this_element;
-                    number_of_gauss_points_for_this_element = m_number_of_gauss_points[domain][tag];
-                    for (int g = 0; g < number_of_gauss_points_for_this_element; g++)
-                    {
-                        m_gauss_to_element_tag[domain][gaussnumber] = tag;
-                        gaussnumber++;
-                    }
+                    ngauss[domain] += m_number_of_gauss_points[domain][tag];
                 }
             }
+
+            GO_HERE << " Number of GPs on domain #" << domain << " = " << ngauss[domain] << endl;
+
+            //Build an index that relates number of a gauss point to the element it belongs to
+            // m_gauss_to_element_tag[domain] = new int[ngauss[domain]];
+            // int gaussnumber = 0;
+            // for (int tag = 0; tag < gausspoints_number_of_tags_max; tag++)
+            // {
+            //     if (index_to_coordinates[tag] >= 0)
+            //     {
+            //         int number_of_gauss_points_for_this_element;
+            //         number_of_gauss_points_for_this_element = m_number_of_gauss_points[domain][tag];
+            //         for (int g = 0; g < number_of_gauss_points_for_this_element; g++)
+            //         {
+            //             m_gauss_to_element_tag[domain][gaussnumber] = tag;
+            //             gaussnumber++;
+            //         }
+            //     }
+            // }
 
 
             // Write the gausspoints
             vtkPoints *points = vtkPoints::New();
 
-            points->SetNumberOfPoints(ngauss);
+            points->SetNumberOfPoints(ngauss[domain]);
             float *pts        = (float *) points->GetVoidPointer(0);
 
             //Read values of coordinates from HDF5 directly into the VTK pts pointer
-            const hsize_t dims[1]          = {ngauss * 3};
+            const hsize_t dims[1]          = {ngauss[domain] * 3 };
             hid_t memspace                 = H5Screate_simple(1, dims, dims);
+            hsize_t start[1] = {0};
+            hsize_t stride[1] = {1};
+            hsize_t count[1] = {3 * ngauss[domain]};
+            hsize_t block[1] = {1};
+            status =  H5Sselect_hyperslab(id_coordinates_dataspace, H5S_SELECT_SET,  start,  stride,  count,  block );
             status = H5Dread(id_gausspoints_coordinates, H5T_NATIVE_FLOAT, memspace, id_coordinates_dataspace, H5P_DEFAULT,
                              pts);
 
-            GO_HERE << "visitESSI: Done reading Gauss Points. Read " << ngauss << " GP coordinate values.\n\n";
+            GO_HERE << "visitESSI: Done reading Gauss Points. Read " << ngauss[domain] << " GP coordinate values.\n\n";
 
 
             //Free up memory.
@@ -734,9 +752,9 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             m_gaussmesh_data[domain] = vtkUnstructuredGrid::New();
             m_gaussmesh_data[domain]->SetPoints(points);
             points->Delete();
-            m_gaussmesh_data[domain]->Allocate(ngauss);
+            m_gaussmesh_data[domain]->Allocate(ngauss[domain]);
             vtkIdType onevertex;
-            for (int i = 0; i < ngauss; ++i)
+            for (int i = 0; i < ngauss[domain]; ++i)
             {
                 onevertex = i;
                 m_gaussmesh_data[domain]->InsertNextCell(VTK_VERTEX, 1, &onevertex);
@@ -927,17 +945,162 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
             delete [] element_type;
             element_type = 0;
         }
-        else
-        {
-            EXCEPTION1(InvalidVariableException, varname);
-            cerr << "avtvisitESSIFileFormat::GetVar() - Element Partition not set\n";
-            return 0;
-        }
     }
 
+    else if (strcmp(varname, "8 Node Brick Update Time") == 0)
+    {
+//////////////////////////////////
+//////////////////////////////////
+//////////////////////////////////
+//////////////////////////////////
+//////////////////////////////////
+//////////////////////////////////
+//////////////////////////////////
+        GO_HERE << "visitESSI: 8 Node Brick Update Time. \n\n";
+
+
+// First get the types
+        rv = 0;
+        hid_t id_element_type           = H5Dopen2(id_file, "/Model/Elements/Class_Tags", H5P_DEFAULT);
+        if (id_element_type > 0)
+        {
+            hid_t id_element_type_dataspace = H5Dget_space(id_element_type);
+            hsize_t element_type_nvals = H5Sget_simple_extent_npoints(id_element_type_dataspace);
+            int *element_type = new int[element_type_nvals];
+            //Get the index to coordinates
+            if (element_type)
+            {
+                herr_t status = H5Dread(id_element_type,
+                                        H5T_NATIVE_INT,
+                                        H5S_ALL,
+                                        id_element_type_dataspace,
+                                        H5P_DEFAULT,
+                                        element_type);
+            }
+            else
+            {
+                cerr << "Ran out of memory getting element_type. \n";
+                return 0;
+            }
+            H5Sclose(id_element_type_dataspace);
+            H5Dclose(id_element_type);
+
+
+
+
+            int n_8nodebrick = 0;
+            for (int i = 0; i < element_type_nvals; i++)
+            {
+                if (element_type[i] == EightNodeBrickLT)
+                {
+                    n_8nodebrick ++;
+                }
+            }
+            GO_HERE << "Counted " << n_8nodebrick << " 8NodeBrickLTs" << endl;
+
+            // int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
+            int ntuples = ncells; // this is the number of entries in the variable.
+            int ucomps = 1;
+
+
+
+            // Read output index
+            hid_t id_elements_index_to_outputs = H5Dopen2(id_file, "/Model/Elements/Index_to_Outputs", H5P_DEFAULT);
+            hid_t id_elements_index_to_outputs_dataspace = H5Dget_space(id_elements_index_to_outputs);
+            hsize_t id_elements_index_to_outputs_nvals  = H5Sget_simple_extent_npoints(id_elements_index_to_outputs_dataspace);
+            int *index_to_outputs  = new int[id_elements_index_to_outputs_nvals];
+            H5Dread(id_elements_index_to_outputs, H5T_NATIVE_INT, H5S_ALL   , id_elements_index_to_outputs_dataspace, H5P_DEFAULT,
+                    index_to_outputs);
+            H5Dclose(id_elements_index_to_outputs);
+            H5Sclose(id_elements_index_to_outputs_dataspace);
+
+
+            // Read output
+            hid_t id_elements_outputs = H5Dopen2(id_file, "/Model/Elements/Outputs", H5P_DEFAULT);
+            hid_t id_elements_outputs_dataspace = H5Dget_space(id_elements_outputs);
+            int elements_outputs_ndims = H5Sget_simple_extent_ndims(id_elements_outputs_dataspace);
+            hsize_t dims[elements_outputs_ndims];
+            hsize_t maxdims[elements_outputs_ndims];
+            H5Sget_simple_extent_dims(id_elements_outputs_dataspace, dims, maxdims );
+
+
+            //Create description of data in memory
+            hsize_t datadims[1] = {dims[0]};
+            hid_t memspace  = H5Screate_simple(1, datadims, datadims);
+
+
+            //Try to get all the outputs (from all elements) now
+            float *outputs = new float[dims[0]];
+
+            const hsize_t start[2] = {0, timestate};
+            const hsize_t stride[2] = {1, 1};
+            const hsize_t count[2] = {dims[0], 1};
+            const hsize_t block[2] = {1, 1};
+
+            H5Sselect_hyperslab( id_elements_outputs_dataspace, H5S_SELECT_SET, start, stride, count, block );
+            H5Dread(id_elements_outputs, H5T_NATIVE_FLOAT, memspace   , id_elements_outputs_dataspace, H5P_DEFAULT,
+                    outputs);
+
+            H5Dclose(id_elements_outputs);
+            H5Sclose(id_elements_outputs_dataspace);
+            H5Sclose(memspace);
+
+            GO_HERE << "Read output vector" << endl;
+
+            vtkFloatArray *rv = vtkFloatArray::New();
+
+            // rv->SetNumberOfComponents(ucomps);
+            rv->SetNumberOfTuples(ntuples);
+
+
+
+            // float *one_entry = new float[ucomps];
+            int gptag = 0;
+            float maxstress = 0;
+            float minstress;
+            for (int tag = 1 ; tag < ncells ; tag++)
+            {
+                if (element_type[tag] == EightNodeBrickLT)
+                {
+                    int pos = index_to_outputs[tag];
+                    float s = outputs[pos + 18 * 8] ; // 18 is the number of outputs per gauss-point first 6 are strains, next 6 are plastic strains and final 6 are stresses (hence the +12)
+                    // GO_HERE << "tag = " << tag << ", t = " << s << ", gptag = " << gptag << endl;
+                    rv->SetTuple1(gptag, s);
+                }
+                else
+                {
+                    rv->SetTuple1(gptag, 0);
+                }
+
+                // rv->SetTuple1(gptag, s);
+                gptag++;
+            }
+
+            // delete [] one_entry;
+            delete [] index_to_outputs;
+            delete [] outputs;
+            delete [] element_type;
+
+            return rv;
+        }
+        return rv;
+        //////////////////////////////////
+        //////////////////////////////////
+        //////////////////////////////////
+        //////////////////////////////////
+        //////////////////////////////////
+        //////////////////////////////////
+        ////////////////////////////////////////////
+    }
+    else
+    {
+        EXCEPTION1(InvalidVariableException, varname);
+        cerr << "avtvisitESSIFileFormat::GetVar() - Element Partition not set\n";
+        return 0;
+    }
     return rv;
-    //
 }
+
 
 
 // ****************************************************************************
@@ -1069,7 +1232,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
     {
         GO_HERE << "visitESSI: Getting stress. \n\n";
         int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
-        int ntuples = ngauss; // this is the number of entries in the variable.
+        int ntuples = ngauss[domain]; // this is the number of entries in the variable.
         int ucomps = 9;
 
 
@@ -1287,7 +1450,9 @@ avtvisitESSIFileFormat::GetTime(std::vector<double> &times)
     times = t;
     GO_HERE << "times = ";
     for (int i = 0; i < times.size(); i++)
+    {
         GO_HERE << times[i] << endl;
+    }
 }
 
 double
@@ -1365,7 +1530,7 @@ void avtvisitESSIFileFormat::PopulateTimeAndNSteps()
 void *
 avtvisitESSIFileFormat::GetAuxiliaryData(const char *var,
         int domain, const char *type, void *,
-        DestructorFunction &df)
+        DestructorFunction & df)
 {
     GO_HERE << "Auxiliary data requested: " << type << ", domain = " << domain << ", var = " << var << endl;
     void *retval = 0;
@@ -1440,7 +1605,10 @@ avtvisitESSIFileFormat::openSubdomainNumber(int domain)
         // Determine the number of digits in the total number of processes
         int number = number_of_processes;
         int digits = 0;
-        if (number < 0) digits = 1; // remove this line if '-' counts as a digit
+        if (number < 0)
+        {
+            digits = 1;    // remove this line if '-' counts as a digit
+        }
         while (number)
         {
             number /= 10;
