@@ -43,6 +43,7 @@
 #include <avtvisitESSIFileFormat.h>
 
 #include <string>
+#include <limits>
 
 #include <vtkFloatArray.h>
 #include <vtkIntArray.h>
@@ -216,7 +217,18 @@ avtvisitESSIFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md, int ti
 
     md->Add(mmd);
 
+    GO_HERE << "ewmwecmwosmdcoiwemdeclkmsadlkmclkwqmdslkcmwdlksmcklds = " << number_of_processes << "\n";
+    ncells = new int [number_of_processes];
     ngauss = new int [number_of_processes];
+    nnodes = new int [number_of_processes];
+
+    for (int i = 0; i < number_of_processes; i++)
+    {
+        ncells[i] = 0;
+        ngauss[i] = 0;
+        nnodes[i] = 0;
+    }
+
     //
     // CODE TO ADD A SCALAR VARIABLE
     //
@@ -301,6 +313,48 @@ avtvisitESSIFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md, int ti
     //KineticEnergy_expr.SetType(Expression::ScalarMeshVar);
     //md->AddExpression(&KineticEnergy_expr);
     //
+
+    Expression *e1 = new Expression;
+    e1->SetName("Sigma_X");
+    e1->SetDefinition("Stress[0][0]");
+    e1->SetType(Expression::ScalarMeshVar);
+    e1->SetHidden(false);
+    md->AddExpression(e1);
+
+    Expression *e2 = new Expression;
+    e2->SetName("Sigma_Y");
+    e2->SetDefinition("Stress[1][1]");
+    e2->SetType(Expression::ScalarMeshVar);
+    e2->SetHidden(false);
+    md->AddExpression(e2);
+
+    Expression *e3 = new Expression;
+    e3->SetName("Sigma_Z");
+    e3->SetDefinition("Stress[2][2]");
+    e3->SetType(Expression::ScalarMeshVar);
+    e3->SetHidden(false);
+    md->AddExpression(e3);
+
+    Expression *e4 = new Expression;
+    e4->SetName("Tau_XY");
+    e4->SetDefinition("Stress[0][1]");
+    e4->SetType(Expression::ScalarMeshVar);
+    e4->SetHidden(false);
+    md->AddExpression(e4);
+
+    Expression *e5 = new Expression;
+    e5->SetName("Tau_XZ");
+    e5->SetDefinition("Stress[0][2]");
+    e5->SetType(Expression::ScalarMeshVar);
+    e5->SetHidden(false);
+    md->AddExpression(e5);
+
+    Expression *e6 = new Expression;
+    e6->SetName("Tau_YZ");
+    e6->SetDefinition("Stress[1][2]");
+    e6->SetType(Expression::ScalarMeshVar);
+    e6->SetHidden(false);
+    md->AddExpression(e6);
 }
 
 
@@ -355,11 +409,11 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
         if (m_mainmesh_data[domain] == NULL)
         {
 
-
+            // nnodes[domain] = 0;
 
             int ndims  = 3;
             int origin = 0;
-            // ncells = 0;
+            // ncells[domain] = 0;
             herr_t status;
 
             // float *mainmesh_pts;
@@ -373,16 +427,33 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             //////////////////////////////////////////////////////////////////////////////////////////
 
 
-            GO_HERE << "visitESSI: Reading Node Info\n\n";
+            GO_HERE << "visitESSI: Reading Node Info for domain " << domain << "\n\n";
 
 
             //Get the number of defined nodes
+            // Read number of elements
+            hid_t id_num_elements = H5Dopen2(id_file, "/Number_of_Elements", H5P_DEFAULT);
+            hid_t id_num_elements_dataspace = H5Dget_space(id_num_elements);
+            H5Dread(id_num_elements, H5T_NATIVE_INT, H5S_ALL   , id_num_elements_dataspace, H5P_DEFAULT,
+                    &ncells[domain]);
+            H5Dclose(id_num_elements);
+            H5Sclose(id_num_elements_dataspace);
 
+
+            // Read number of nodes
+            int numero_de_nodos;
+            hid_t id_num_nodes = H5Dopen2(id_file, "/Number_of_Nodes", H5P_DEFAULT);
+            hid_t id_num_nodes_dataspace = H5Dget_space(id_num_nodes);
+            H5Dread(id_num_nodes, H5T_NATIVE_INT, H5S_ALL   , id_num_nodes_dataspace, H5P_DEFAULT,
+                    &(nnodes[domain]));
+            GO_HERE << "&nnodes[domain] = " << nnodes[domain] << endl;
+            H5Dclose(id_num_nodes);
+            H5Sclose(id_num_nodes_dataspace);
 
             hid_t id_nodes_coordinates                    = H5Dopen2(id_file, "/Model/Nodes/Coordinates", H5P_DEFAULT);
             hid_t id_coordinates_dataspace                = H5Dget_space(id_nodes_coordinates);
             hsize_t id_nodes_coordinates_nvals            = H5Sget_simple_extent_npoints(id_coordinates_dataspace);
-            // nnodes                                        = static_cast<int> (id_nodes_coordinates_nvals) / 3;
+            // nnodes[domain]                                        = static_cast<int> (id_nodes_coordinates_nvals) / 3;
             //Get number of maximum possibly defined tags :/
             hid_t id_nodes_index_to_coordinates           = H5Dopen2(id_file, "/Model/Nodes/Index_to_Coordinates", H5P_DEFAULT);
             hid_t id_nodes_index_to_coordinates_dataspace = H5Dget_space(id_nodes_index_to_coordinates);
@@ -433,7 +504,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             // Create the vtkPoints object and copy points into it.
             //
             vtkPoints *points = vtkPoints::New();
-            points->SetNumberOfPoints(nnodes);
+            points->SetNumberOfPoints(nnodes[domain]);
             float *pts        = (float *) points->GetVoidPointer(0);
 
 
@@ -441,7 +512,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             // mainmesh_pts = new float[nnodes * 3];
 
             //Read values of coordinates from HDF5 directly into the VTK pts pointer
-            const hsize_t dims[1]          = {nnodes * 3};
+            const hsize_t dims[1]          = {nnodes[domain] * 3};
             hid_t memspace                 = H5Screate_simple(1, dims, dims);
             status = H5Dread(id_nodes_coordinates,
                              H5T_NATIVE_FLOAT,
@@ -449,7 +520,10 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
                              id_coordinates_dataspace,
                              H5P_DEFAULT,
                              pts);
-
+            // for (int nodenum = 0; nodenum < nnodes[domain]; nodenum++)
+            // {
+            //     GO_HERE << "(" << pts[nodenum] << " " << pts[nodenum] << " " << pts[nodenum] << ") ";
+            // }
             GO_HERE << "visitESSI: Done reading nodes. Read " << nnodes << " nodes values.\n\n";
 
             //Free up memory.
@@ -466,7 +540,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             GO_HERE << "visitESSI: Reading Element Info\n\n";
 
 
-            //Get the number of elements (ncells)
+            //Get the number of elements (ncells[domain])
             hid_t id_elements_nnodes = H5Dopen2(id_file, "/Model/Elements/Number_of_Nodes", H5P_DEFAULT);
             hid_t id_elements_nnodes_dataspace = H5Dget_space(id_elements_nnodes);
             id_elements_nnodes_nvals  = H5Sget_simple_extent_npoints(id_elements_nnodes_dataspace);
@@ -501,7 +575,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             H5Sclose(id_elements_nnodes_dataspace);
 
 
-            GO_HERE << "visitESSI: Mesh has " << ncells <<  " elements. \n\n";
+            GO_HERE << "visitESSI: Mesh has " << ncells[domain] <<  " elements. \n\n";
 
             GO_HERE << "visitESSI: Reading connectivity \n\n";
 
@@ -530,7 +604,7 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             m_mainmesh_data[domain] = vtkUnstructuredGrid::New();
             m_mainmesh_data[domain]  -> SetPoints(points);
             points -> Delete();
-            m_mainmesh_data[domain]  -> Allocate(ncells);
+            m_mainmesh_data[domain]  -> Allocate(ncells[domain]);
 
             vtkIdType verts[27];
 
@@ -624,8 +698,8 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
                     count += nverts;
                 }
             }
-            // GO_HERE << "visitESSI: Added " << number_of_added_elements << " elements of " << ncells << " total available.\n\n";
-            GO_HERE << "visitESSI: Added " << number_of_added_elements << " elements of " << ncells << " total available.\n\n";
+            // GO_HERE << "visitESSI: Added " << number_of_added_elements << " elements of " << ncells[domain] << " total available.\n\n";
+            GO_HERE << "visitESSI: Added " << number_of_added_elements << " elements of " << ncells[domain] << " total available.\n\n";
         }
 
         m_mainmesh_data[domain]->Register(NULL);
@@ -813,7 +887,7 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
     {
         // GO_HERE << "Getting Node tag\n";
         rv = vtkIntArray::New();
-        ntuples = nnodes;
+        ntuples = nnodes[domain];
         rv->SetNumberOfTuples(ntuples);
         if (m_pointnumbers2tags[domain])
         {
@@ -832,7 +906,7 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
     {
         // GO_HERE << "Getting Node tag\n";
         rv = vtkIntArray::New();
-        ntuples = ncells;
+        ntuples = ncells[domain];
         rv->SetNumberOfTuples(ntuples);
         if (m_pointnumbers2tags[domain])
         {
@@ -877,9 +951,9 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
             H5Sclose(id_partition_dataspace);
             H5Dclose(id_partition);
 
-            // GO_HERE << "ncells = " << ncells << endl;
+            // GO_HERE << "ncells[domain] = " << ncells[domain] << endl;
             rv = vtkIntArray::New();
-            rv->SetNumberOfTuples(ncells);
+            rv->SetNumberOfTuples(ncells[domain]);
             int cell_number;
             for (int tag = 0 ; tag < partition_nvals ; tag++)
             {
@@ -929,9 +1003,9 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
             H5Sclose(id_element_type_dataspace);
             H5Dclose(id_element_type);
 
-            // GO_HERE << "ncells = " << ncells << endl;
+            // GO_HERE << "ncells[domain] = " << ncells[domain] << endl;
             rv = vtkIntArray::New();
-            rv->SetNumberOfTuples(ncells);
+            rv->SetNumberOfTuples(ncells[domain]);
             int cell_number;
             for (int tag = 0 ; tag < element_type_nvals ; tag++)
             {
@@ -999,7 +1073,7 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
             GO_HERE << "Counted " << n_8nodebrick << " 8NodeBrickLTs" << endl;
 
             // int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
-            int ntuples = ncells; // this is the number of entries in the variable.
+            int ntuples = ncells[domain]; // this is the number of entries in the variable.
             int ucomps = 1;
 
 
@@ -1058,7 +1132,7 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
             int gptag = 0;
             float maxstress = 0;
             float minstress;
-            for (int tag = 1 ; tag < ncells ; tag++)
+            for (int tag = 1 ; tag < ncells[domain] ; tag++)
             {
                 if (element_type[tag] == EightNodeBrickLT)
                 {
@@ -1137,7 +1211,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
     {
         // GO_HERE << "visitESSI: Getting generalized displacements. \n\n";
         int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
-        int ntuples = nnodes; // this is the number of entries in the variable.
+        int ntuples = nnodes[domain]; // this is the number of entries in the variable.
         int ucomps = 3;
 
 
@@ -1230,7 +1304,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
 
     else if (strcmp(varname, "Stress") == 0)
     {
-        GO_HERE << "visitESSI: Getting stress. \n\n";
+        GO_HERE << "visitESSI: Getting stress form " << ngauss[domain] << " GPs on " << ncells[domain] << " elements \n\n";
         int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
         int ntuples = ngauss[domain]; // this is the number of entries in the variable.
         int ucomps = 9;
@@ -1282,13 +1356,14 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
         H5Sclose(id_elements_outputs_dataspace);
         H5Sclose(memspace);
 
-        // GO_HERE << "ncells = " << ncells << endl;
+        // GO_HERE << "ncells[domain] = " << ncells[domain] << endl;
         float *one_entry = new float[ucomps];
         int gptag = 0;
         int order[9] = { 0 , 3,  4 , 3, 1, 5, 4, 5, 2 }; // This converts 6 component symmetric stress to 9 component general tensor... matrix is filled row-wise.
-        float maxstress = 0;
-        float minstress;
-        for (int tag = 0 ; tag < ncells ; tag++)
+        float maxstress = -std::numeric_limits<double>::infinity();
+        float minstress = std::numeric_limits<double>::infinity();
+        // for (int tag = 0 ; tag < ncells[domain] ; tag++)
+        for (int tag = 0 ; tag < id_elements_index_to_outputs_nvals ; tag++)
         {
             int pos = index_to_outputs[tag];
             int number_of_gauss_point_for_this_element = m_number_of_gauss_points[domain][tag];
@@ -1299,6 +1374,14 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
                 for (int i = 0; i < 9; i++)
                 {
                     one_entry[i] = *(s + order[i]);
+                    if (one_entry[i] > maxstress)
+                    {
+                        maxstress = one_entry[i];
+                    }
+                    else if (one_entry[i] < minstress)
+                    {
+                        minstress = one_entry[i];
+                    }
                 }
 
                 rv->SetTuple(gptag, one_entry);
@@ -1306,13 +1389,16 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
             }
         }
 
+        GO_HERE << "gptag = " << gptag << endl;
+        GO_HERE << "Max stress = " << maxstress << endl;
+        GO_HERE << "Min stress = " << minstress << endl;
+
+
         delete [] one_entry;
         delete [] index_to_outputs;
         delete [] outputs;
 
         return rv;
-
-
     }
     else
     {
@@ -1368,20 +1454,20 @@ void avtvisitESSIFileFormat::initialize()
         H5Sclose(id_num_tsteps_dataspace);
 
         //Read number of elements
-        hid_t id_num_elements = H5Dopen2(id_file, "/Number_of_Elements", H5P_DEFAULT);
-        hid_t id_num_elements_dataspace = H5Dget_space(id_num_elements);
-        H5Dread(id_num_elements, H5T_NATIVE_INT, H5S_ALL   , id_num_elements_dataspace, H5P_DEFAULT,
-                &ncells);
-        H5Dclose(id_num_elements);
-        H5Sclose(id_num_elements_dataspace);
+        // hid_t id_num_elements = H5Dopen2(id_file, "/Number_of_Elements", H5P_DEFAULT);
+        // hid_t id_num_elements_dataspace = H5Dget_space(id_num_elements);
+        // H5Dread(id_num_elements, H5T_NATIVE_INT, H5S_ALL   , id_num_elements_dataspace, H5P_DEFAULT,
+        //         &ncells[domain]);
+        // H5Dclose(id_num_elements);
+        // H5Sclose(id_num_elements_dataspace);
 
         //Read number of nodes
-        hid_t id_num_nodes = H5Dopen2(id_file, "/Number_of_Nodes", H5P_DEFAULT);
-        hid_t id_num_nodes_dataspace = H5Dget_space(id_num_nodes);
-        H5Dread(id_num_nodes, H5T_NATIVE_INT, H5S_ALL   , id_num_nodes_dataspace, H5P_DEFAULT,
-                &nnodes);
-        H5Dclose(id_num_nodes);
-        H5Sclose(id_num_nodes_dataspace);
+        // hid_t id_num_nodes = H5Dopen2(id_file, "/Number_of_Nodes", H5P_DEFAULT);
+        // hid_t id_num_nodes_dataspace = H5Dget_space(id_num_nodes);
+        // H5Dread(id_num_nodes, H5T_NATIVE_INT, H5S_ALL   , id_num_nodes_dataspace, H5P_DEFAULT,
+        //         &nnodes);
+        // H5Dclose(id_num_nodes);
+        // H5Sclose(id_num_nodes_dataspace);
 
         //Read number of processes used
         // Number_of_Processes_Used
@@ -1426,8 +1512,8 @@ void avtvisitESSIFileFormat::initialize()
 
 
         GO_HERE << "Number of time-steps = " << nsteps << endl;
-        GO_HERE << "Number of nodes      = " << nnodes << endl;
-        GO_HERE << "Number of elements   = " << ncells << endl;
+        // GO_HERE << "Number of nodes      = " << nnodes << endl;
+        // GO_HERE << "Number of elements   = " << ncells[domain] << endl;
         GO_HERE << "Number of processes  = " << number_of_processes << endl;
         GO_HERE << "This process         = " << process_number << endl;
 
@@ -1630,7 +1716,7 @@ avtvisitESSIFileFormat::openSubdomainNumber(int domain)
         hid_t id_num_elements = H5Dopen2(id_file, "/Number_of_Elements", H5P_DEFAULT);
         hid_t id_num_elements_dataspace = H5Dget_space(id_num_elements);
         H5Dread(id_num_elements, H5T_NATIVE_INT, H5S_ALL   , id_num_elements_dataspace, H5P_DEFAULT,
-                &ncells);
+                &ncells[domain]);
         H5Dclose(id_num_elements);
         H5Sclose(id_num_elements_dataspace);
 
@@ -1638,7 +1724,7 @@ avtvisitESSIFileFormat::openSubdomainNumber(int domain)
         hid_t id_num_nodes = H5Dopen2(id_file, "/Number_of_Nodes", H5P_DEFAULT);
         hid_t id_num_nodes_dataspace = H5Dget_space(id_num_nodes);
         H5Dread(id_num_nodes, H5T_NATIVE_INT, H5S_ALL   , id_num_nodes_dataspace, H5P_DEFAULT,
-                &nnodes);
+                &nnodes[domain]);
         H5Dclose(id_num_nodes);
         H5Sclose(id_num_nodes_dataspace);
     }

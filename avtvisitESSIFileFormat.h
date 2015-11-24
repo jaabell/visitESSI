@@ -132,9 +132,9 @@ private:
     std::string filename_string;
     bool initialized;
     hid_t id_file;
-    int nnodes;
-    int ngauss;
-    int ncells;
+    int *nnodes;
+    int *ngauss;
+    int *ncells;
     int nsteps;
     int number_of_processes;
     int process_number;
@@ -162,5 +162,9 @@ private:
 
 };
 
+
+
+//Element class tags (see ClassTags.h within RealESSI)
+#define EightNodeBrickLT 8001
 
 #endif
