@@ -964,8 +964,8 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
                 rv->SetTuple1(cell_number, domain + 1);
             }
         }
-        delete [] partition;
-        partition = 0;
+        // delete [] partition;
+        // partition = 0;
         // }
         else
         {
