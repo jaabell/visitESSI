@@ -955,7 +955,7 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
         rv = vtkIntArray::New();
         rv->SetNumberOfTuples(ncells[domain]);
         int cell_number;
-        for (int tag = 0 ; tag < partition_nvals ; tag++)
+        for (int tag = 0 ; tag < ncells[domain] ; tag++)
         {
             cell_number = m_tags2cellnumbers[domain][tag];
             // GO_HERE << "cell_number = " << cell_number << ",  tag = " << tag << ", partition = "<< partition[tag] << endl;
