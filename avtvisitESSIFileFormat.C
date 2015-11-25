@@ -954,15 +954,15 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
         // GO_HERE << "ncells[domain] = " << ncells[domain] << endl;
         rv = vtkIntArray::New();
         rv->SetNumberOfTuples(ncells[domain]);
-        int cell_number;
-        for (int tag = 0 ; tag < ncells[domain] ; tag++)
+        // int cell_number;
+        for (int ii = 0 ; ii < ncells[domain] ; ii++)
         {
-            cell_number = m_tags2cellnumbers[domain][tag];
+            // cell_number = m_tags2cellnumbers[domain][ii];
             // GO_HERE << "cell_number = " << cell_number << ",  tag = " << tag << ", partition = "<< partition[tag] << endl;
-            if (cell_number >= 0)
-            {
-                rv->SetTuple1(cell_number, domain + 1);
-            }
+            // if (cell_number >= 0)
+            // {
+            rv->SetTuple1(cell_number, domain + 1);
+            // }
         }
         // delete [] partition;
         // partition = 0;
