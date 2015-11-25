@@ -927,46 +927,46 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
         // GO_HERE << "Getting Node tag\n";
 
 
-        hid_t id_partition           = H5Dopen2(id_file, "/Model/Elements/Partition", H5P_DEFAULT);
-        if (id_partition > 0)
-        {
-            hid_t id_partition_dataspace = H5Dget_space(id_partition);
-            hsize_t partition_nvals = H5Sget_simple_extent_npoints(id_partition_dataspace);
-            //Get the index to coordinates
-            int *partition = new int[partition_nvals];
-            if (partition)
-            {
-                herr_t status = H5Dread(id_partition,
-                                        H5T_NATIVE_INT,
-                                        H5S_ALL,
-                                        id_partition_dataspace,
-                                        H5P_DEFAULT,
-                                        partition);
-            }
-            else
-            {
-                cerr << "Ran out of memory getting partition. \n";
-                return 0;
-            }
-            H5Sclose(id_partition_dataspace);
-            H5Dclose(id_partition);
+        // hid_t id_partition           = H5Dopen2(id_file, "/Model/Elements/Partition", H5P_DEFAULT);
+        // if (id_partition > 0)
+        // {
+        // hid_t id_partition_dataspace = H5Dget_space(id_partition);
+        // hsize_t partition_nvals = H5Sget_simple_extent_npoints(id_partition_dataspace);
+        // //Get the index to coordinates
+        // int *partition = new int[partition_nvals];
+        // if (partition)
+        // {
+        //     herr_t status = H5Dread(id_partition,
+        //                             H5T_NATIVE_INT,
+        //                             H5S_ALL,
+        //                             id_partition_dataspace,
+        //                             H5P_DEFAULT,
+        //                             partition);
+        // }
+        // else
+        // {
+        //     cerr << "Ran out of memory getting partition. \n";
+        //     return 0;
+        // }
+        // H5Sclose(id_partition_dataspace);
+        // H5Dclose(id_partition);
 
-            // GO_HERE << "ncells[domain] = " << ncells[domain] << endl;
-            rv = vtkIntArray::New();
-            rv->SetNumberOfTuples(ncells[domain]);
-            int cell_number;
-            for (int tag = 0 ; tag < partition_nvals ; tag++)
+        // GO_HERE << "ncells[domain] = " << ncells[domain] << endl;
+        rv = vtkIntArray::New();
+        rv->SetNumberOfTuples(ncells[domain]);
+        int cell_number;
+        for (int tag = 0 ; tag < partition_nvals ; tag++)
+        {
+            cell_number = m_tags2cellnumbers[domain][tag];
+            // GO_HERE << "cell_number = " << cell_number << ",  tag = " << tag << ", partition = "<< partition[tag] << endl;
+            if (cell_number >= 0)
             {
-                cell_number = m_tags2cellnumbers[domain][tag];
-                // GO_HERE << "cell_number = " << cell_number << ",  tag = " << tag << ", partition = "<< partition[tag] << endl;
-                if (cell_number >= 0)
-                {
-                    rv->SetTuple1(cell_number, partition[tag]);
-                }
+                rv->SetTuple1(cell_number, domain + 1);
             }
-            delete [] partition;
-            partition = 0;
         }
+        delete [] partition;
+        partition = 0;
+        // }
         else
         {
             EXCEPTION1(InvalidVariableException, varname);
