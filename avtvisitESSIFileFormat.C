@@ -967,12 +967,12 @@ avtvisitESSIFileFormat::GetVar(int timestate, int domain, const char *varname)
         // delete [] partition;
         // partition = 0;
         // }
-        else
-        {
-            EXCEPTION1(InvalidVariableException, varname);
-            cerr << "avtvisitESSIFileFormat::GetVar() - Element Partition not set\n";
-            return 0;
-        }
+        // else
+        // {
+        //     EXCEPTION1(InvalidVariableException, varname);
+        //     cerr << "avtvisitESSIFileFormat::GetVar() - Element Partition not set\n";
+        //     return 0;
+        // }
     }
     else if (strcmp(varname, "Element Type") == 0)
     {
