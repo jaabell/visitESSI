@@ -1325,6 +1325,15 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
         H5Dclose(id_elements_index_to_outputs);
         H5Sclose(id_elements_index_to_outputs_dataspace);
 
+        // Read output index
+        hid_t id_elements_n_output_vals = H5Dopen2(id_file, "/Model/Elements/Number_of_Output_Fields", H5P_DEFAULT);
+        hid_t id_elements_n_output_vals_dataspace = H5Dget_space(id_elements_n_output_vals);
+        hsize_t id_elements_n_output_vals_nvals  = H5Sget_simple_extent_npoints(id_elements_n_output_vals_dataspace);
+        int *n_output_vals  = new int[id_elements_n_output_vals_nvals];
+        H5Dread(id_elements_n_output_vals, H5T_NATIVE_INT, H5S_ALL   , id_elements_n_output_vals_dataspace, H5P_DEFAULT,
+                n_output_vals);
+        H5Dclose(id_elements_n_output_vals);
+        H5Sclose(id_elements_n_output_vals_dataspace);
 
         // Read output
         hid_t id_elements_outputs = H5Dopen2(id_file, "/Model/Elements/Outputs", H5P_DEFAULT);
@@ -1367,8 +1376,21 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
         {
             int pos = index_to_outputs[tag];
             int number_of_gauss_point_for_this_element = m_number_of_gauss_points[domain][tag];
+
             for (int gp = 0; gp < number_of_gauss_point_for_this_element; gp++)
             {
+
+                if (n_output_vals[tag] <= 0)
+                {
+                    for (int i = 0; i < 9; i++)
+                    {
+                        one_entry[i]  = 0.;
+                    }
+                    rv->SetTuple(gptag, one_entry);
+                    gptag++;
+                    continue;
+                }
+
                 // float *s = outputs[ pos + 18 * gp + 12]; // 18 is the number of outputs per gauss-point first 6 are strains, next 6 are plastic strains and final 6 are stresses (hence the +12)
                 float *s = outputs + pos + 18 * gp + 12; // 18 is the number of outputs per gauss-point first 6 are strains, next 6 are plastic strains and final 6 are stresses (hence the +12)
                 for (int i = 0; i < 9; i++)
