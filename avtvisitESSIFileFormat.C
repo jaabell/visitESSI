@@ -1315,124 +1315,132 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
             vartype = 2;
         }
         GO_HERE << "visitESSI: Getting stress form " << ngauss[domain] << " GPs on " << ncells[domain] << " elements \n\n";
-        int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
-        int ntuples = ngauss[domain]; // this is the number of entries in the variable.
-        int ucomps = 9;
-
-
-        vtkFloatArray *rv = vtkFloatArray::New();
-        rv->SetNumberOfComponents(ucomps);
-        rv->SetNumberOfTuples(ntuples);
-
-
-        // Read output index
-        hid_t id_elements_index_to_outputs = H5Dopen2(id_file, "/Model/Elements/Index_to_Outputs", H5P_DEFAULT);
-        hid_t id_elements_index_to_outputs_dataspace = H5Dget_space(id_elements_index_to_outputs);
-        hsize_t id_elements_index_to_outputs_nvals  = H5Sget_simple_extent_npoints(id_elements_index_to_outputs_dataspace);
-        int *index_to_outputs  = new int[id_elements_index_to_outputs_nvals];
-        H5Dread(id_elements_index_to_outputs, H5T_NATIVE_INT, H5S_ALL   , id_elements_index_to_outputs_dataspace, H5P_DEFAULT,
-                index_to_outputs);
-        H5Dclose(id_elements_index_to_outputs);
-        H5Sclose(id_elements_index_to_outputs_dataspace);
-
-        // Read output index
-        hid_t id_elements_n_output_vals = H5Dopen2(id_file, "/Model/Elements/Number_of_Output_Fields", H5P_DEFAULT);
-        hid_t id_elements_n_output_vals_dataspace = H5Dget_space(id_elements_n_output_vals);
-        hsize_t id_elements_n_output_vals_nvals  = H5Sget_simple_extent_npoints(id_elements_n_output_vals_dataspace);
-        int *n_output_vals  = new int[id_elements_n_output_vals_nvals];
-        H5Dread(id_elements_n_output_vals, H5T_NATIVE_INT, H5S_ALL   , id_elements_n_output_vals_dataspace, H5P_DEFAULT,
-                n_output_vals);
-        H5Dclose(id_elements_n_output_vals);
-        H5Sclose(id_elements_n_output_vals_dataspace);
-
-        // Read output
-        hid_t id_elements_outputs = H5Dopen2(id_file, "/Model/Elements/Outputs", H5P_DEFAULT);
-        hid_t id_elements_outputs_dataspace = H5Dget_space(id_elements_outputs);
-        int elements_outputs_ndims = H5Sget_simple_extent_ndims(id_elements_outputs_dataspace);
-        hsize_t dims[elements_outputs_ndims];
-        hsize_t maxdims[elements_outputs_ndims];
-        H5Sget_simple_extent_dims(id_elements_outputs_dataspace, dims, maxdims );
-
-
-        //Create description of data in memory
-        hsize_t datadims[1] = {dims[0]};
-        hid_t memspace  = H5Screate_simple(1, datadims, datadims);
-
-
-        //Try to get all the outputs (from all elements) now
-        float *outputs = new float[dims[0]];
-
-        const hsize_t start[2] = {0, timestate};
-        const hsize_t stride[2] = {1, 1};
-        const hsize_t count[2] = {dims[0], 1};
-        const hsize_t block[2] = {1, 1};
-
-        H5Sselect_hyperslab( id_elements_outputs_dataspace, H5S_SELECT_SET, start, stride, count, block );
-        H5Dread(id_elements_outputs, H5T_NATIVE_FLOAT, memspace   , id_elements_outputs_dataspace, H5P_DEFAULT,
-                outputs);
-
-        H5Dclose(id_elements_outputs);
-        H5Sclose(id_elements_outputs_dataspace);
-        H5Sclose(memspace);
-
-        // GO_HERE << "ncells[domain] = " << ncells[domain] << endl;
-        float *one_entry = new float[ucomps];
-        int gptag = 0;
-        int order[9] = { 0 , 3,  4 , 3, 1, 5, 4, 5, 2 }; // This converts 6 component symmetric stress to 9 component general tensor... matrix is filled row-wise.
-        float maxstress = -std::numeric_limits<double>::infinity();
-        float minstress = std::numeric_limits<double>::infinity();
-        // for (int tag = 0 ; tag < ncells[domain] ; tag++)
-        for (int tag = 0 ; tag < id_elements_index_to_outputs_nvals ; tag++)
+        if (H5Lexists(id_file, "/Model/Elements/Outputs", H5P_DEFAULT) != FALSE)
         {
-            int pos = index_to_outputs[tag];
-            int number_of_gauss_point_for_this_element = m_number_of_gauss_points[domain][tag];
+            int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
+            int ntuples = ngauss[domain]; // this is the number of entries in the variable.
+            int ucomps = 9;
 
-            for (int gp = 0; gp < number_of_gauss_point_for_this_element; gp++)
+
+            vtkFloatArray *rv = vtkFloatArray::New();
+            rv->SetNumberOfComponents(ucomps);
+            rv->SetNumberOfTuples(ntuples);
+
+
+            // Read output index
+            hid_t id_elements_index_to_outputs = H5Dopen2(id_file, "/Model/Elements/Index_to_Outputs", H5P_DEFAULT);
+            hid_t id_elements_index_to_outputs_dataspace = H5Dget_space(id_elements_index_to_outputs);
+            hsize_t id_elements_index_to_outputs_nvals  = H5Sget_simple_extent_npoints(id_elements_index_to_outputs_dataspace);
+            int *index_to_outputs  = new int[id_elements_index_to_outputs_nvals];
+            H5Dread(id_elements_index_to_outputs, H5T_NATIVE_INT, H5S_ALL   , id_elements_index_to_outputs_dataspace, H5P_DEFAULT,
+                    index_to_outputs);
+            H5Dclose(id_elements_index_to_outputs);
+            H5Sclose(id_elements_index_to_outputs_dataspace);
+
+            // Read output index
+            hid_t id_elements_n_output_vals = H5Dopen2(id_file, "/Model/Elements/Number_of_Output_Fields", H5P_DEFAULT);
+            hid_t id_elements_n_output_vals_dataspace = H5Dget_space(id_elements_n_output_vals);
+            hsize_t id_elements_n_output_vals_nvals  = H5Sget_simple_extent_npoints(id_elements_n_output_vals_dataspace);
+            int *n_output_vals  = new int[id_elements_n_output_vals_nvals];
+            H5Dread(id_elements_n_output_vals, H5T_NATIVE_INT, H5S_ALL   , id_elements_n_output_vals_dataspace, H5P_DEFAULT,
+                    n_output_vals);
+            H5Dclose(id_elements_n_output_vals);
+            H5Sclose(id_elements_n_output_vals_dataspace);
+
+            // Read output
+            hid_t id_elements_outputs = H5Dopen2(id_file, "/Model/Elements/Outputs", H5P_DEFAULT);
+            hid_t id_elements_outputs_dataspace = H5Dget_space(id_elements_outputs);
+            int elements_outputs_ndims = H5Sget_simple_extent_ndims(id_elements_outputs_dataspace);
+            hsize_t dims[elements_outputs_ndims];
+            hsize_t maxdims[elements_outputs_ndims];
+            H5Sget_simple_extent_dims(id_elements_outputs_dataspace, dims, maxdims );
+
+
+            //Create description of data in memory
+            hsize_t datadims[1] = {dims[0]};
+            hid_t memspace  = H5Screate_simple(1, datadims, datadims);
+
+
+            //Try to get all the outputs (from all elements) now
+            float *outputs = new float[dims[0]];
+
+            const hsize_t start[2] = {0, timestate};
+            const hsize_t stride[2] = {1, 1};
+            const hsize_t count[2] = {dims[0], 1};
+            const hsize_t block[2] = {1, 1};
+
+            H5Sselect_hyperslab( id_elements_outputs_dataspace, H5S_SELECT_SET, start, stride, count, block );
+            H5Dread(id_elements_outputs, H5T_NATIVE_FLOAT, memspace   , id_elements_outputs_dataspace, H5P_DEFAULT,
+                    outputs);
+
+            H5Dclose(id_elements_outputs);
+            H5Sclose(id_elements_outputs_dataspace);
+            H5Sclose(memspace);
+
+            // GO_HERE << "ncells[domain] = " << ncells[domain] << endl;
+            float *one_entry = new float[ucomps];
+            int gptag = 0;
+            int order[9] = { 0 , 3,  4 , 3, 1, 5, 4, 5, 2 }; // This converts 6 component symmetric stress to 9 component general tensor... matrix is filled row-wise.
+            float maxstress = -std::numeric_limits<double>::infinity();
+            float minstress = std::numeric_limits<double>::infinity();
+            // for (int tag = 0 ; tag < ncells[domain] ; tag++)
+            for (int tag = 0 ; tag < id_elements_index_to_outputs_nvals ; tag++)
             {
+                int pos = index_to_outputs[tag];
+                int number_of_gauss_point_for_this_element = m_number_of_gauss_points[domain][tag];
 
-                if (n_output_vals[tag] <= 0)
+                for (int gp = 0; gp < number_of_gauss_point_for_this_element; gp++)
                 {
+
+                    if (n_output_vals[tag] <= 0)
+                    {
+                        for (int i = 0; i < 9; i++)
+                        {
+                            one_entry[i]  = 0.;
+                        }
+                        rv->SetTuple(gptag, one_entry);
+                        gptag++;
+                        continue;
+                    }
+
+                    // float *s = outputs[ pos + 18 * gp + 12]; // 18 is the number of outputs per gauss-point first 6 are strains, next 6 are plastic strains and final 6 are stresses (hence the +12)
+                    float *s = outputs + pos + 18 * gp + 6 * vartype; // 18 is the number of outputs per gauss-point first 6 are strains, next 6 are plastic strains and final 6 are stresses (hence the +12)
                     for (int i = 0; i < 9; i++)
                     {
-                        one_entry[i]  = 0.;
+                        one_entry[i] = *(s + order[i]);
+                        if (one_entry[i] > maxstress)
+                        {
+                            maxstress = one_entry[i];
+                        }
+                        else if (one_entry[i] < minstress)
+                        {
+                            minstress = one_entry[i];
+                        }
                     }
+
                     rv->SetTuple(gptag, one_entry);
                     gptag++;
-                    continue;
                 }
-
-                // float *s = outputs[ pos + 18 * gp + 12]; // 18 is the number of outputs per gauss-point first 6 are strains, next 6 are plastic strains and final 6 are stresses (hence the +12)
-                float *s = outputs + pos + 18 * gp + 6 * vartype; // 18 is the number of outputs per gauss-point first 6 are strains, next 6 are plastic strains and final 6 are stresses (hence the +12)
-                for (int i = 0; i < 9; i++)
-                {
-                    one_entry[i] = *(s + order[i]);
-                    if (one_entry[i] > maxstress)
-                    {
-                        maxstress = one_entry[i];
-                    }
-                    else if (one_entry[i] < minstress)
-                    {
-                        minstress = one_entry[i];
-                    }
-                }
-
-                rv->SetTuple(gptag, one_entry);
-                gptag++;
             }
+
+            GO_HERE << "gptag = " << gptag << endl;
+
+
+            GO_HERE << "Max stress = " << maxstress << endl;
+            GO_HERE << "Min stress = " << minstress << endl;
+
+
+            delete [] one_entry;
+            delete [] index_to_outputs;
+            delete [] outputs;
+
+            return rv;
         }
-
-        GO_HERE << "gptag = " << gptag << endl;
-
-
-        GO_HERE << "Max stress = " << maxstress << endl;
-        GO_HERE << "Min stress = " << minstress << endl;
-
-
-        delete [] one_entry;
-        delete [] index_to_outputs;
-        delete [] outputs;
-
-        return rv;
+        else  // The dataset "/Model/Elements/Outputs" was not found. Skip!
+        {
+            GO_HERE << "The outputs dataset doesn't exist in this domain. Domain contains only elements that didn't produce output? Elegantly skipping!" << endl;
+            return 0;
+        }
     }
     else
     {
