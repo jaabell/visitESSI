@@ -72,8 +72,8 @@ using     std::string;
 // My includes
 #include <hdf5.h>
 
-// #define GO_HERE std::cout
-#define GO_HERE debug4
+#define GO_HERE std::cout
+// #define GO_HERE debug4
 
 // ****************************************************************************
 //  Method: avtvisitESSIFileFormat constructor
