@@ -72,7 +72,8 @@ using     std::string;
 // My includes
 #include <hdf5.h>
 
-#define GO_HERE std::cout
+// #define GO_HERE std::cout
+#define GO_HERE debug4
 
 // ****************************************************************************
 //  Method: avtvisitESSIFileFormat constructor
@@ -1302,8 +1303,17 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
     // =============================================================================================
     // =============================================================================================
 
-    else if (strcmp(varname, "Stress") == 0)
+    else if (strcmp(varname, "Stress") == 0 | strcmp(varname, "Strain") == 0 |  strcmp(varname, "Plastic Strain") == 0 )
     {
+        int vartype = 0;
+        if (strcmp(varname, "Plastic Strain") == 0 )
+        {
+            vartype = 1;
+        }
+        if (strcmp(varname, "Stress") == 0 )
+        {
+            vartype = 2;
+        }
         GO_HERE << "visitESSI: Getting stress form " << ngauss[domain] << " GPs on " << ncells[domain] << " elements \n\n";
         int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
         int ntuples = ngauss[domain]; // this is the number of entries in the variable.
@@ -1392,7 +1402,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
                 }
 
                 // float *s = outputs[ pos + 18 * gp + 12]; // 18 is the number of outputs per gauss-point first 6 are strains, next 6 are plastic strains and final 6 are stresses (hence the +12)
-                float *s = outputs + pos + 18 * gp + 12; // 18 is the number of outputs per gauss-point first 6 are strains, next 6 are plastic strains and final 6 are stresses (hence the +12)
+                float *s = outputs + pos + 18 * gp + 6 * vartype; // 18 is the number of outputs per gauss-point first 6 are strains, next 6 are plastic strains and final 6 are stresses (hence the +12)
                 for (int i = 0; i < 9; i++)
                 {
                     one_entry[i] = *(s + order[i]);
@@ -1412,6 +1422,8 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
         }
 
         GO_HERE << "gptag = " << gptag << endl;
+
+
         GO_HERE << "Max stress = " << maxstress << endl;
         GO_HERE << "Min stress = " << minstress << endl;
 
