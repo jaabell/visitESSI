@@ -1315,7 +1315,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
             vartype = 2;
         }
         GO_HERE << "visitESSI: Getting stress form " << ngauss[domain] << " GPs on " << ncells[domain] << " elements \n\n";
-        if (H5Lexists(id_file, "/Model/Elements/Outputs", H5P_DEFAULT) != FALSE)
+        if (H5Lexists(id_file, "/Model/Elements/Outputs", H5P_DEFAULT) != false)
         {
             int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
             int ntuples = ngauss[domain]; // this is the number of entries in the variable.
