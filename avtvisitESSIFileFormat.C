@@ -441,6 +441,8 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             H5Sclose(id_num_elements_dataspace);
 
 
+
+
             // Read number of nodes
             int numero_de_nodos;
             hid_t id_num_nodes = H5Dopen2(id_file, "/Number_of_Nodes", H5P_DEFAULT);
@@ -1303,7 +1305,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
     // =============================================================================================
     // =============================================================================================
 
-    else if (strcmp(varname, "Stress") == 0 | strcmp(varname, "Strain") == 0 |  strcmp(varname, "Plastic Strain") == 0 )
+    else if (strcmp(varname, "Stress") == 0 || strcmp(varname, "Strain") == 0 ||  strcmp(varname, "Plastic Strain") == 0 )
     {
         int vartype = 0;
         if (strcmp(varname, "Plastic Strain") == 0 )
@@ -1426,8 +1428,8 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
             GO_HERE << "gptag = " << gptag << endl;
 
 
-            GO_HERE << "Max stress = " << maxstress << endl;
-            GO_HERE << "Min stress = " << minstress << endl;
+            GO_HERE << "Max " << varname << " = " << maxstress << endl;
+            GO_HERE << "Min " << varname << " = " << minstress << endl;
 
 
             delete [] one_entry;
