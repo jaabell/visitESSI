@@ -356,6 +356,13 @@ avtvisitESSIFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md, int ti
     e6->SetType(Expression::ScalarMeshVar);
     e6->SetHidden(false);
     md->AddExpression(e6);
+
+    Expression *e7 = new Expression;
+    e6->SetName("Relative_Generalized_Displacements");
+    e6->SetDefinition("<Generalized Displacements> - conn_cmfe(<[0]i:Generalized Displacements>, <ESSI Domain Mesh>)");
+    e6->SetType(Expression::VectorMeshVar);
+    e6->SetHidden(false);
+    md->AddExpression(e6);
 }
 
 
