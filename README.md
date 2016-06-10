@@ -66,6 +66,6 @@ If all goes well, VisIt should be aware of plugin and be able to open `.h5.feiou
 ---
 [UCD CompGeoMech](http://sokocalo.engr.ucdavis.edu/~jeremic/)
 
-Created by: [Jose Abell](www.joseabell.com)
+Created by: [Jose Abell](http://www.joseabell.com)
 
 Last update to this timestamp: Thu 21 May 2015 18:26:00 PDT
