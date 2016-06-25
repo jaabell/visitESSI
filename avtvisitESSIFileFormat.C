@@ -260,12 +260,20 @@ avtvisitESSIFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md, int ti
     varname = "Generalized Displacements";
     int vector_dim = 3;
     cent = AVT_NODECENT; // AVT_NODECENT, AVT_ZONECENT, AVT_UNKNOWN_CENT
-    //
-    //
-    // Here's the call that tells the meta - data object that we have a var:
-    //
+
     AddVectorVarToMetaData(md, varname, mainmesh, cent, vector_dim);
+
+
     //
+    // CODE TO ADD A VECTOR VARIABLE
+    //
+    varname = "Generalized Forces";
+    vector_dim = 3;
+    cent = AVT_NODECENT; // AVT_NODECENT, AVT_ZONECENT, AVT_UNKNOWN_CENT
+
+    AddVectorVarToMetaData(md, varname, mainmesh, cent, vector_dim);
+
+
 
     //
     // CODE TO ADD A TENSOR VARIABLE
@@ -1302,6 +1310,91 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
         return rv;
     }
 
+    else if (strcmp(varname, "Generalized Forces") == 0)
+    {
+        // GO_HERE << "visitESSI: Getting generalized displacements. \n\n";
+        int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
+        int ntuples = nnodes[domain]; // this is the number of entries in the variable.
+        int ucomps = 3;
+
+
+        vtkFloatArray *rv = vtkFloatArray::New();
+        rv->SetNumberOfComponents(ucomps);
+        rv->SetNumberOfTuples(ntuples);
+
+        //Get the  connectivity
+        hid_t id_nodes_index_to_output = H5Dopen2(id_file, "/Model/Nodes/Index_to_Generalized_Displacements", H5P_DEFAULT);
+        hid_t id_nodes_index_to_output_dataspace = H5Dget_space(id_nodes_index_to_output);
+        hsize_t id_nodes_index_to_output_nvals  = H5Sget_simple_extent_npoints(id_nodes_index_to_output_dataspace);
+        int *index_to_output  = new int[id_nodes_index_to_output_nvals];
+        H5Dread(id_nodes_index_to_output, H5T_NATIVE_INT, H5S_ALL   , id_nodes_index_to_output_dataspace, H5P_DEFAULT,
+                index_to_output);
+
+        H5Dclose(id_nodes_index_to_output);
+        H5Sclose(id_nodes_index_to_output_dataspace);
+
+
+
+        //Open up displacements for reading
+        hid_t id_nodes_genforces = H5Dopen2(id_file, "/Model/Nodes/Generalized_Forces", H5P_DEFAULT);
+        hid_t id_nodes_genforces_dataspace = H5Dget_space(id_nodes_genforces);
+        int node_genforces_ndims = H5Sget_simple_extent_ndims(id_nodes_genforces_dataspace);
+        hsize_t dims[node_genforces_ndims];
+        hsize_t maxdims[node_genforces_ndims];
+        H5Sget_simple_extent_dims(id_nodes_genforces_dataspace, dims, maxdims );
+
+
+        //Create description of data in memory
+        hsize_t datadims[1] = {dims[0]};
+        hid_t memspace  = H5Screate_simple(1, datadims, datadims);
+
+        // GO_HERE << "dims[0] = " << dims[0] << endl;
+
+        //Try to get all the genforces now
+        float *genforces = new float[dims[0]];
+
+        const hsize_t start[2] = {0, timestate};
+        const hsize_t stride[2] = {1, 1};
+        const hsize_t count[2] = {dims[0], 1};
+        const hsize_t block[2] = {1, 1};
+
+        H5Sselect_hyperslab( id_nodes_genforces_dataspace, H5S_SELECT_SET, start, stride, count, block );
+        H5Dread(id_nodes_genforces, H5T_NATIVE_FLOAT, memspace   , id_nodes_genforces_dataspace, H5P_DEFAULT,
+                genforces);
+
+        //Creanup
+        H5Dclose(id_nodes_genforces);
+        H5Sclose(id_nodes_genforces_dataspace);
+        H5Sclose(memspace);
+
+        // GO_HERE << "Writing\n";
+
+        //Write the data to VTK
+        float *one_entry = new float[ucomps];
+        float *d = genforces;
+        for (int i = 0 ; i < ntuples ; i++)
+        {
+            one_entry[0] = *(d++);
+            one_entry[1] = *(d++);
+            one_entry[2] = *(d++);
+
+            // GO_HERE << "d[" << i << "] = (" << one_entry[0] << ", " << one_entry[1] << ", " << one_entry[2] << ")";
+
+            d += m_number_of_dofs[domain][m_pointnumbers2tags[domain][i]] - 3;
+            // GO_HERE << ".";
+            rv->SetTuple(i, one_entry);
+            // GO_HERE << ".\n";
+        }
+
+        delete [] one_entry;
+        delete [] index_to_output;
+        delete [] genforces;
+
+
+
+        return rv;
+    }
+
     // =============================================================================================
     // =============================================================================================
     // =============================================================================================
@@ -1323,7 +1416,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
         {
             vartype = 2;
         }
-        GO_HERE << "visitESSI: Getting stress form " << ngauss[domain] << " GPs on " << ncells[domain] << " elements \n\n";
+        GO_HERE << "visitESSI: Getting " << varname << " form " << ngauss[domain] << " GPs on " << ncells[domain] << " elements \n\n";
         if (H5Lexists(id_file, "/Model/Elements/Outputs", H5P_DEFAULT) != false)
         {
             int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
