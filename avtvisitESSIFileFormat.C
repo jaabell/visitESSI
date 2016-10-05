@@ -254,6 +254,23 @@ avtvisitESSIFileFormat::PopulateDatabaseMetaData(avtDatabaseMetaData *md, int ti
     cent = AVT_ZONECENT;
     AddScalarVarToMetaData(md, varname, mainmesh, cent);
 
+    varname = "Shell_M11";
+    cent = AVT_ZONECENT;
+    AddScalarVarToMetaData(md, varname, mainmesh, cent);
+
+
+    varname = "Shell_M22";
+    cent = AVT_ZONECENT;
+    AddScalarVarToMetaData(md, varname, mainmesh, cent);
+
+
+
+    varname = "Shell_M12";
+    cent = AVT_ZONECENT;
+    AddScalarVarToMetaData(md, varname, mainmesh, cent);
+
+
+
     //
     // CODE TO ADD A VECTOR VARIABLE
     //
@@ -417,6 +434,12 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
     // =============================================================================================
     // =============================================================================================
     // =============================================================================================
+
+    // if (domain == 0)
+    // {
+    //     return 0;
+    // }
+
     openSubdomainNumber(domain);
 
     if (strcmp(meshname, mainmesh.c_str()) == 0 )
@@ -558,16 +581,65 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             GO_HERE << "visitESSI: Reading Element Info\n\n";
 
 
+            //Get the class tags for the elements
+            hid_t id_elements_classtags = H5Dopen2(id_file, "/Model/Elements/Class_Tags", H5P_DEFAULT);
+            hid_t id_elements_classtags_dataspace = H5Dget_space(id_elements_classtags);
+            int id_elements_classtags_nvals  = H5Sget_simple_extent_npoints(id_elements_classtags_dataspace);
+            id_elements_nnodes_nvals = id_elements_classtags_nvals;
+            max_ele_tag = id_elements_classtags;
+
+            int *elements_classtags  = new int[id_elements_classtags_nvals];
+            status = H5Dread(id_elements_classtags, H5T_NATIVE_INT, H5S_ALL   , id_elements_classtags_dataspace, H5P_DEFAULT,
+                             elements_classtags);
+
+            //Read the descriptions
+            hid_t id_elements_descarray = H5Dopen2(id_file, "/Model/Elements/Element_Class_Desc", H5P_DEFAULT);
+            hid_t id_elements_descarray_dataspace = H5Dget_space(id_elements_descarray);
+            int id_elements_descarray_nvals  = H5Sget_simple_extent_npoints(id_elements_descarray_dataspace);
+            max_ele_tag = id_elements_descarray;
+
+            int *Element_Desc_Array  = new int[id_elements_descarray_nvals];
+            status = H5Dread(id_elements_descarray, H5T_NATIVE_INT, H5S_ALL   , id_elements_descarray_dataspace, H5P_DEFAULT,
+                             Element_Desc_Array);
+
             //Get the number of elements (ncells[domain])
-            hid_t id_elements_nnodes = H5Dopen2(id_file, "/Model/Elements/Number_of_Nodes", H5P_DEFAULT);
-            hid_t id_elements_nnodes_dataspace = H5Dget_space(id_elements_nnodes);
-            id_elements_nnodes_nvals  = H5Sget_simple_extent_npoints(id_elements_nnodes_dataspace);
+            // hid_t id_elements_nnodes = H5Dopen2(id_file, "/Model/Elements/Number_of_Nodes", H5P_DEFAULT);
+            // hid_t id_elements_nnodes_dataspace = H5Dget_space(id_elements_nnodes);
+            // id_elements_nnodes_nvals  = H5Sget_simple_extent_npoints(id_elements_nnodes_dataspace);
 
-            max_ele_tag = id_elements_nnodes;
+            max_ele_tag = id_elements_nnodes_nvals;
 
-            elements_nnodes  = new int[id_elements_nnodes_nvals];
-            status = H5Dread(id_elements_nnodes, H5T_NATIVE_INT, H5S_ALL   , id_elements_nnodes_dataspace, H5P_DEFAULT,
-                             elements_nnodes);
+            elements_nnodes  = new int[id_elements_nnodes_nvals + 1];
+            // status = H5Dread(id_elements_nnodes, H5T_NATIVE_INT, H5S_ALL   , id_elements_nnodes_dataspace, H5P_DEFAULT,
+            //                  elements_nnodes);
+
+
+            for (int index = 0; index < id_elements_classtags_nvals; index++)
+            {
+                int class_tag  = elements_classtags[index];
+                int class_desc = Element_Desc_Array[class_tag];
+                int nnodes     = (class_desc / 1000000) % 100; // Number of element nodes
+                int ngauss     = (class_desc % 100000) / 100; // Number of gauss nodes
+
+                if (class_tag != -1)
+                {
+                    elements_nnodes[index] = nnodes;
+                }
+                else
+                {
+                    elements_nnodes[index] = -1;
+                }
+
+
+                // cout << "class_tag = " << class_tag << endl;
+                // cout << "class_desc = " << class_desc << endl;
+                // cout << "nnodes = " << nnodes << endl;
+                // cout << "ngauss = " << ngauss << endl;
+
+
+            }
+
+            cout << "Here\n";
 
             max_node_tag = id_elements_nnodes_nvals;
 
@@ -587,10 +659,10 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
                     m_tags2cellnumbers[domain][tag] = -1;
                 }
             }
+            cout << "Here\n";
 
-
-            H5Dclose(id_elements_nnodes);
-            H5Sclose(id_elements_nnodes_dataspace);
+            // H5Dclose(id_elements_nnodes);
+            // H5Sclose(id_elements_nnodes_dataspace);
 
 
             GO_HERE << "visitESSI: Mesh has " << ncells[domain] <<  " elements. \n\n";
@@ -769,14 +841,68 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
                              index_to_coordinates);
 
             //Get number of Gauss points per element
-            hid_t id_number_of_gausspoints           = H5Dopen2(id_file, "/Model/Elements/Number_of_Gauss_Points", H5P_DEFAULT);
-            hid_t id_number_of_gausspoints_dataspace = H5Dget_space(id_number_of_gausspoints);
+            // hid_t id_number_of_gausspoints           = H5Dopen2(id_file, "/Model/Elements/Number_of_Gauss_Points", H5P_DEFAULT);
+            // hid_t id_number_of_gausspoints_dataspace = H5Dget_space(id_number_of_gausspoints);
 
 
             //Get the number of GPs
             m_number_of_gauss_points[domain] = new int[gausspoints_number_of_tags_max];
-            status = H5Dread(id_number_of_gausspoints, H5T_NATIVE_INT, H5S_ALL   , id_number_of_gausspoints_dataspace, H5P_DEFAULT,
-                             m_number_of_gauss_points[domain]);
+            // status = H5Dread(id_number_of_gausspoints, H5T_NATIVE_INT, H5S_ALL   , id_number_of_gausspoints_dataspace, H5P_DEFAULT,
+            //                  m_number_of_gauss_points[domain]);
+
+
+
+//////////////////////////???
+//////////////////////////???
+//////////////////////////???
+
+
+            //Get the class tags for the elements
+            hid_t id_elements_classtags = H5Dopen2(id_file, "/Model/Elements/Class_Tags", H5P_DEFAULT);
+            hid_t id_elements_classtags_dataspace = H5Dget_space(id_elements_classtags);
+            int id_elements_classtags_nvals  = H5Sget_simple_extent_npoints(id_elements_classtags_dataspace);
+            int id_elements_nnodes_nvals = id_elements_classtags_nvals;
+            max_ele_tag = id_elements_classtags;
+
+            int *elements_classtags  = new int[id_elements_classtags_nvals];
+            status = H5Dread(id_elements_classtags, H5T_NATIVE_INT, H5S_ALL   , id_elements_classtags_dataspace, H5P_DEFAULT,
+                             elements_classtags);
+
+            //Read the descriptions
+            hid_t id_elements_descarray = H5Dopen2(id_file, "/Model/Elements/Element_Class_Desc", H5P_DEFAULT);
+            hid_t id_elements_descarray_dataspace = H5Dget_space(id_elements_descarray);
+            int id_elements_descarray_nvals  = H5Sget_simple_extent_npoints(id_elements_descarray_dataspace);
+            max_ele_tag = id_elements_descarray;
+
+            int *Element_Desc_Array  = new int[id_elements_descarray_nvals];
+            status = H5Dread(id_elements_descarray, H5T_NATIVE_INT, H5S_ALL   , id_elements_descarray_dataspace, H5P_DEFAULT,
+                             Element_Desc_Array);
+
+            max_ele_tag = id_elements_nnodes_nvals;
+
+
+            for (int index = 0; index < id_elements_classtags_nvals; index++)
+            {
+                int class_tag  = elements_classtags[index];
+                int class_desc = Element_Desc_Array[class_tag];
+                int nnodes     = (class_desc / 1000000) % 100; // Number of element nodes
+                int ngauss     = (class_desc % 100000) / 100; // Number of gauss nodes
+
+                if (class_tag != -1)
+                {
+                    m_number_of_gauss_points[domain][index] = ngauss;
+                }
+                else
+                {
+                    m_number_of_gauss_points[domain][index] = -1;
+                }
+
+
+            }
+
+
+//////////////////////////???
+//////////////////////////???
 
 
             ngauss[domain] = 0;
@@ -835,8 +961,8 @@ avtvisitESSIFileFormat::GetMesh(int timestate, int domain, const char *meshname)
             H5Sclose(id_coordinates_dataspace);
             H5Dclose(id_gausspoints_index_to_coordinates);
             H5Sclose(id_gausspoints_index_to_coordinates_dataspace);
-            H5Dclose(id_number_of_gausspoints);
-            H5Sclose(id_number_of_gausspoints_dataspace);
+            // H5Dclose(id_number_of_gausspoints);
+            // H5Sclose(id_number_of_gausspoints_dataspace);
 
             //
             // Create a vtkUnstructuredGrid to contain the point cells.
@@ -1417,7 +1543,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
             vartype = 2;
         }
         GO_HERE << "visitESSI: Getting " << varname << " form " << ngauss[domain] << " GPs on " << ncells[domain] << " elements \n\n";
-        if (H5Lexists(id_file, "/Model/Elements/Outputs", H5P_DEFAULT) != false)
+        if (H5Lexists(id_file, "/Model/Elements/Gauss_Outputs", H5P_DEFAULT) != false)
         {
             int ncomps = 3;  // This is the rank of the vector - typically 2 or 3.
             int ntuples = ngauss[domain]; // this is the number of entries in the variable.
@@ -1430,7 +1556,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
 
 
             // Read output index
-            hid_t id_elements_index_to_outputs = H5Dopen2(id_file, "/Model/Elements/Index_to_Outputs", H5P_DEFAULT);
+            hid_t id_elements_index_to_outputs = H5Dopen2(id_file, "/Model/Elements/Index_to_Element_Outputs", H5P_DEFAULT);
             hid_t id_elements_index_to_outputs_dataspace = H5Dget_space(id_elements_index_to_outputs);
             hsize_t id_elements_index_to_outputs_nvals  = H5Sget_simple_extent_npoints(id_elements_index_to_outputs_dataspace);
             int *index_to_outputs  = new int[id_elements_index_to_outputs_nvals];
@@ -1440,17 +1566,17 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
             H5Sclose(id_elements_index_to_outputs_dataspace);
 
             // Read output index
-            hid_t id_elements_n_output_vals = H5Dopen2(id_file, "/Model/Elements/Number_of_Output_Fields", H5P_DEFAULT);
-            hid_t id_elements_n_output_vals_dataspace = H5Dget_space(id_elements_n_output_vals);
-            hsize_t id_elements_n_output_vals_nvals  = H5Sget_simple_extent_npoints(id_elements_n_output_vals_dataspace);
-            int *n_output_vals  = new int[id_elements_n_output_vals_nvals];
-            H5Dread(id_elements_n_output_vals, H5T_NATIVE_INT, H5S_ALL   , id_elements_n_output_vals_dataspace, H5P_DEFAULT,
-                    n_output_vals);
-            H5Dclose(id_elements_n_output_vals);
-            H5Sclose(id_elements_n_output_vals_dataspace);
+            // hid_t id_elements_n_output_vals = H5Dopen2(id_file, "/Model/Elements/Number_of_Output_Fields", H5P_DEFAULT);
+            // hid_t id_elements_n_output_vals_dataspace = H5Dget_space(id_elements_n_output_vals);
+            // hsize_t id_elements_n_output_vals_nvals  = H5Sget_simple_extent_npoints(id_elements_n_output_vals_dataspace);
+            // int *n_output_vals  = new int[id_elements_n_output_vals_nvals];
+            // H5Dread(id_elements_n_output_vals, H5T_NATIVE_INT, H5S_ALL   , id_elements_n_output_vals_dataspace, H5P_DEFAULT,
+            //         n_output_vals);
+            // H5Dclose(id_elements_n_output_vals);
+            // H5Sclose(id_elements_n_output_vals_dataspace);
 
             // Read output
-            hid_t id_elements_outputs = H5Dopen2(id_file, "/Model/Elements/Outputs", H5P_DEFAULT);
+            hid_t id_elements_outputs = H5Dopen2(id_file, "/Model/Elements/Gauss_Outputs", H5P_DEFAULT);
             hid_t id_elements_outputs_dataspace = H5Dget_space(id_elements_outputs);
             int elements_outputs_ndims = H5Sget_simple_extent_ndims(id_elements_outputs_dataspace);
             hsize_t dims[elements_outputs_ndims];
@@ -1485,25 +1611,31 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
             int order[9] = { 0 , 3,  4 , 3, 1, 5, 4, 5, 2 }; // This converts 6 component symmetric stress to 9 component general tensor... matrix is filled row-wise.
             float maxstress = -std::numeric_limits<double>::infinity();
             float minstress = std::numeric_limits<double>::infinity();
+
+
+            int pos = 0;
             // for (int tag = 0 ; tag < ncells[domain] ; tag++)
             for (int tag = 0 ; tag < id_elements_index_to_outputs_nvals ; tag++)
             {
-                int pos = index_to_outputs[tag];
+                // int pos = index_to_outputs[tag];
                 int number_of_gauss_point_for_this_element = m_number_of_gauss_points[domain][tag];
+                // GO_HERE << "number_of_gauss_point_for_this_element = " << number_of_gauss_point_for_this_element << endl;
 
                 for (int gp = 0; gp < number_of_gauss_point_for_this_element; gp++)
                 {
 
-                    if (n_output_vals[tag] <= 0)
-                    {
-                        for (int i = 0; i < 9; i++)
-                        {
-                            one_entry[i]  = 0.;
-                        }
-                        rv->SetTuple(gptag, one_entry);
-                        gptag++;
-                        continue;
-                    }
+                    // if (n_output_vals[tag] <= 0)
+                    // if (true)
+                    // {
+                    //     for (int i = 0; i < 9; i++)
+                    //     {
+                    //         one_entry[i]  = 0.;
+                    //     }
+                    //     rv->SetTuple(gptag, one_entry);
+                    //     gptag++;
+                    //     continue;
+                    //     pos += 18;
+                    // }
 
                     // float *s = outputs[ pos + 18 * gp + 12]; // 18 is the number of outputs per gauss-point first 6 are strains, next 6 are plastic strains and final 6 are stresses (hence the +12)
                     float *s = outputs + pos + 18 * gp + 6 * vartype; // 18 is the number of outputs per gauss-point first 6 are strains, next 6 are plastic strains and final 6 are stresses (hence the +12)
@@ -1519,6 +1651,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
                             minstress = one_entry[i];
                         }
                     }
+                    pos += 18;
 
                     rv->SetTuple(gptag, one_entry);
                     gptag++;
@@ -1526,6 +1659,7 @@ avtvisitESSIFileFormat::GetVectorVar(int timestate, int domain, const char *varn
             }
 
             GO_HERE << "gptag = " << gptag << endl;
+            GO_HERE << "pos = " << pos << endl;
 
 
             GO_HERE << "Max " << varname << " = " << maxstress << endl;
